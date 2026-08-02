@@ -130,6 +130,33 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -
 
     _write(config.DATA_DIR / "leaders.json", leaders)
 
+    # ---- compact row summaries -------------------------------------------
+    # One row per stock, enough to render any table without opening the
+    # per-stock files. Without this a 148-member theme page would fire 148
+    # requests; instead every table view costs a single ~650KB fetch.
+    def r2(v):
+        """Percentages carry no meaning past two decimals; shorten the payload."""
+        return None if v is None or not math.isfinite(v) else round(float(v), 2)
+
+    rows = []
+    for r in sorted(results, key=lambda x: x["code"]):
+        per = {}
+        for label, p in r["periods"].items():
+            per[label] = {
+                "gap": r2(p["gap_pct"]), "prob": round(p["prob"], 4) if math.isfinite(p["prob"]) else None,
+                "ret": r2(p["ret_pct"]), "rs": r2(p["rs"]), "score": r2(p.get("score")),
+                "cand": p.get("candidate", False), "at_high": p["at_high"],
+            }
+        rows.append({
+            "code": r["code"], "name": r["name"], "market": r["market"],
+            "close": r["close"], "change_pct": r2(r["change_pct"]),
+            "vol_surge": r2(r["vol_surge"]),
+            "amount20": round(r["amount20"]) if math.isfinite(r["amount20"]) else None,
+            "ma_aligned": r["ma_aligned"], "themes": theme_objs(r["code"]),
+            "periods": per,
+        })
+    _write(config.DATA_DIR / "rows.json", rows)
+
     # ---- search index -----------------------------------------------------
     index = [
         [r["code"], r["name"], r["market"], [t["name"] for t in theme_objs(r["code"])]]

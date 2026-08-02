@@ -101,15 +101,16 @@ async function detailView(t) {
     { label: '주도주점수', sort: 'score' },
   ]);
 
-  const loaded = await Promise.all(t.members.map((c) =>
-    loadJSON(`data/stocks/${c}.json`).catch(() => null)));
+  // One shared fetch covers every member; see rows.json in build_site.py.
+  const all = await loadJSON('data/rows.json');
+  const want = new Set(t.members);
 
-  const rows = loaded.filter(Boolean).map((d) => {
+  const rows = all.filter((d) => want.has(d.code)).map((d) => {
     const p = d.periods[period] || {};
     return {
       code: d.code, name: d.name, close: d.close, change_pct: d.change_pct,
-      gap_pct: p.gap_pct, at_high: p.at_high, prob: p.prob,
-      ret_pct: p.ret_pct, score: p.score, candidate: p.candidate,
+      gap_pct: p.gap, at_high: p.at_high, prob: p.prob,
+      ret_pct: p.ret, score: p.score, candidate: p.cand,
     };
   });
 

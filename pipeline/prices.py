@@ -9,6 +9,7 @@ median error, which is well inside what a liquidity filter needs.
 from __future__ import annotations
 
 import json
+import random
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
@@ -25,6 +26,12 @@ SISE_URL = (
 )
 
 COLUMNS = ["date", "open", "high", "low", "close", "volume"]
+
+# Circuit-breaker thresholds: once this many codes have been attempted, a
+# failure rate above the limit means the source is refusing us rather than a
+# few codes being individually broken.
+BREAKER_MIN_SAMPLE = 200
+BREAKER_FAILURE_RATE = 0.35
 
 
 def _session() -> requests.Session:
@@ -87,9 +94,13 @@ def fetch_one(code: str, start: str, end: str, session: requests.Session) -> pd.
                 df = _parse(r.text)
                 if df is not None:
                     return df
+            elif r.status_code in (429, 503):
+                # Explicit throttling: wait longer than for a generic error.
+                time.sleep(2.0 * (attempt + 1) + random.random())
+                continue
         except requests.RequestException:
             pass
-        time.sleep(0.4 * (attempt + 1))
+        time.sleep(0.4 * (attempt + 1) + random.random() * 0.3)
     return None
 
 
@@ -103,10 +114,13 @@ def fetch_all(codes: list[str], end_date: datetime | None = None) -> dict[str, p
     failures: list[str] = []
     done = 0
     t0 = time.time()
+    tripped = False
 
     session = _session()
 
     def work(code: str):
+        if tripped:  # stop issuing requests once the breaker has opened
+            return code, None
         return code, fetch_one(code, start, end, session)
 
     with ThreadPoolExecutor(max_workers=config.MAX_WORKERS) as ex:
@@ -116,9 +130,26 @@ def fetch_all(codes: list[str], end_date: datetime | None = None) -> dict[str, p
                 failures.append(code)
             else:
                 out[code] = df
+
+            # Circuit breaker. If the source starts refusing us, retrying every
+            # remaining code wastes the timeout budget for hours and still ends
+            # in an unusable dataset -- better to stop and report immediately.
+            if not tripped and done >= BREAKER_MIN_SAMPLE:
+                if len(failures) / done > BREAKER_FAILURE_RATE:
+                    tripped = True
+                    print(
+                        f"  ABORT: {len(failures)}/{done} requests failing "
+                        f"(>{BREAKER_FAILURE_RATE:.0%}); the source is likely "
+                        f"throttling us. Stopping early.",
+                        flush=True,
+                    )
+
             if done % 250 == 0:
                 el = time.time() - t0
-                print(f"  prices {done}/{len(codes)}  {el:.0f}s  ok={len(out)}", flush=True)
+                rate = done / el if el else 0
+                eta = (len(codes) - done) / rate if rate else 0
+                print(f"  prices {done}/{len(codes)}  {el:.0f}s  ok={len(out)}  "
+                      f"eta={eta:.0f}s", flush=True)
 
     print(f"  prices done: {len(out)} ok, {len(failures)} failed, {time.time() - t0:.0f}s",
           flush=True)

@@ -17,8 +17,10 @@ STOCK_DIR = DATA_DIR / "stocks"
 FETCH_CALENDAR_DAYS = 500
 SERVE_TRADING_DAYS = 245  # ~1 year of candles sent to the browser
 
-MAX_WORKERS = 8  # Naver tolerates this comfortably; verified on the runner
-REQUEST_TIMEOUT = 30
+MAX_WORKERS = 6  # gentler than the 8 that ran into throttling from CI runners
+# Per attempt. Kept short deliberately: with thousands of codes a long timeout
+# turns a throttled source into an hours-long hang instead of a fast failure.
+REQUEST_TIMEOUT = 12
 RETRIES = 3
 
 USER_AGENT = (
