@@ -1,0 +1,143 @@
+import {
+  loadJSON, PERIOD_LABELS, nf, pct, money, dirClass, el,
+  initTheme, initSearch, markNav, makeSortable, themeChips,
+} from './common.js';
+
+initTheme();
+markNav('home');
+initSearch();
+
+const tb = document.getElementById('tb');
+const table = document.getElementById('tbl');
+const emptyBox = document.getElementById('empty');
+const countEl = document.getElementById('count');
+
+let leaders = {}, meta = {}, period = '1M', sorter = null;
+
+const filters = {
+  market: document.getElementById('f-market'),
+  prob: document.getElementById('f-prob'),
+  align: document.getElementById('f-align'),
+};
+
+function rowsFor(p) {
+  const minProb = parseFloat(filters.prob.value) || 0;
+  const mkt = filters.market.value;
+  const alignOnly = filters.align.checked;
+  return (leaders[p] || []).filter((r) =>
+    (!mkt || r.market === mkt)
+    && (r.prob ?? 0) >= minProb
+    && (!alignOnly || r.ma_aligned));
+}
+
+function render(rows) {
+  tb.innerHTML = '';
+  countEl.textContent = rows.length ? `${rows.length}종목` : '';
+
+  if (!rows.length) {
+    emptyBox.hidden = false;
+    const any = (leaders[period] || []).length;
+    emptyBox.innerHTML = '';
+    emptyBox.append(
+      el('strong', {}, any ? '조건에 맞는 종목이 없습니다'
+                           : `${PERIOD_LABELS[period]} 기준 주도주 후보가 없습니다`),
+      el('div', {}, any
+        ? '필터를 완화해 보세요.'
+        : '상승 추세이면서 신고가가 오늘 사정권(20% 이내)에 든 종목이 없다는 뜻입니다. 하락장에서는 정상적인 결과입니다.'),
+    );
+    return;
+  }
+  emptyBox.hidden = true;
+
+  rows.forEach((r, i) => {
+    const probPct = (r.prob ?? 0) * 100;
+    const tr = el('tr', { onclick: () => (location.href = `stock.html?code=${r.code}`) },
+      el('td', { class: 'l rank' }, String(i + 1)),
+      el('td', { class: 'l' },
+        el('span', { class: 'nm' }, r.name),
+        el('span', { class: 'cd' }, r.code),
+        r.at_high ? el('span', { class: 'badge hi', style: 'margin-left:6px' }, '신고가') : null,
+      ),
+      el('td', { class: 'l' }, themeChips(r.themes)),
+      el('td', { class: 'num' }, nf(r.close)),
+      el('td', { class: 'num ' + dirClass(r.change_pct) }, pct(r.change_pct)),
+      el('td', { class: 'num' }, r.at_high ? el('span', { class: 'up' }, '돌파') : pct(r.gap_pct, 2, false)),
+      el('td', {},
+        el('div', { class: 'meter' },
+          el('div', { class: 'track' },
+            el('div', { class: 'fill', style: `width:${Math.min(100, probPct)}%` })),
+          el('span', { class: 'val' }, probPct.toFixed(1) + '%'))),
+      el('td', { class: 'num ' + dirClass(r.ret_pct) }, pct(r.ret_pct, 1)),
+      el('td', { class: 'num ' + dirClass(r.rs) }, pct(r.rs, 1)),
+      el('td', { class: 'num' }, r.vol_surge ? r.vol_surge.toFixed(2) + '×' : '–'),
+      el('td', {},
+        el('div', { class: 'scorecell' },
+          el('div', { class: 'track' },
+            el('div', { class: 'fill', style: `width:${r.score}%` })),
+          el('span', { class: 'val num' }, (r.score ?? 0).toFixed(0)))),
+    );
+    tb.appendChild(tr);
+  });
+}
+
+function refresh() {
+  sorter = makeSortable(table, rowsFor(period), render, { key: 'score', dir: -1 });
+}
+
+function buildTabs() {
+  const box = document.getElementById('tabs');
+  box.innerHTML = '';
+  for (const p of meta.periods || Object.keys(PERIOD_LABELS)) {
+    const n = (meta.candidates || {})[p] ?? 0;
+    box.appendChild(el('button', {
+      class: 'tab' + (p === period ? ' active' : ''),
+      onclick: () => {
+        period = p;
+        box.querySelectorAll('.tab').forEach((b, i) =>
+          b.classList.toggle('active', (meta.periods || [])[i] === p));
+        refresh();
+      },
+    }, `${PERIOD_LABELS[p]} 신고가`, el('span', { class: 'muted' }, ` ${n}`)));
+  }
+}
+
+function buildStats() {
+  const s = document.getElementById('stats');
+  const total = Object.values(meta.candidates || {}).reduce((a, b) => a + b, 0);
+  const items = [
+    ['분석 종목', nf(meta.universe)],
+    ['주도주 후보', nf(total)],
+    ['상승 / 하락', `${nf(meta.advancing)} / ${nf(meta.declining)}`],
+    ['테마', nf(meta.themes)],
+    ['기준일', meta.trade_date || '–'],
+  ];
+  s.innerHTML = '';
+  for (const [k, v] of items) {
+    s.appendChild(el('div', { class: 'stat' },
+      el('div', { class: 'k' }, k), el('div', { class: 'v' }, v)));
+  }
+}
+
+(async function init() {
+  try {
+    [meta, leaders] = await Promise.all([
+      loadJSON('data/meta.json'),
+      loadJSON('data/leaders.json'),
+    ]);
+  } catch (e) {
+    document.getElementById('sub').textContent =
+      '데이터를 불러오지 못했습니다. 첫 수집이 아직 실행되지 않았을 수 있습니다.';
+    return;
+  }
+
+  document.getElementById('sub').textContent =
+    `${meta.trade_date} 종가 기준 · ${meta.generated_at} 생성 · `
+    + `상승 추세이면서 신고가가 ${meta.reach_pct}% 이내인 종목`;
+
+  period = (meta.periods || ['1M'])[0];
+  buildStats();
+  buildTabs();
+  refresh();
+
+  for (const f of Object.values(filters)) f.addEventListener('change', refresh);
+})();

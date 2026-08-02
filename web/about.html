@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>방법론 — MarketFlow</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<style>
+  .prose { max-width: 780px; }
+  .prose h2 { font-size: 17px; margin: 30px 0 10px; letter-spacing: -0.01em; }
+  .prose p, .prose li { color: var(--ink-2); line-height: 1.75; font-size: 14px; }
+  .prose code { font-family: var(--mono); background: var(--surface-2); padding: 1px 5px;
+                border-radius: 4px; font-size: 12.5px; }
+  .prose table { margin: 12px 0 4px; font-size: 13px; }
+  .prose td, .prose th { padding: 7px 10px; }
+  .prose .card { padding: 0; margin: 14px 0; }
+  .formula { background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
+             padding: 14px 16px; font-family: var(--mono); font-size: 13px; line-height: 1.9;
+             overflow-x: auto; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html">Market<span>Flow</span></a>
+    <nav class="links">
+      <a href="index.html" data-page="home">주도주</a>
+      <a href="theme.html" data-page="theme">테마</a>
+      <a href="about.html" data-page="about">방법론</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="search">
+      <input id="q" type="text" placeholder="종목명 · 코드 검색  ( / )" autocomplete="off" spellcheck="false">
+      <div class="results" id="qres"></div>
+    </div>
+    <button class="icon-btn" id="theme-btn" title="테마 전환">☾</button>
+  </div>
+</header>
+
+<main class="wrap prose">
+  <div class="page-head">
+    <h1>방법론</h1>
+    <p id="sub"></p>
+  </div>
+
+  <h2>대상 종목</h2>
+  <p>코스피·코스닥 <strong>보통주</strong>만 분석합니다. ETF·ETN은 애초에 상장목록에서 제외되고,
+  우선주(종목코드 끝자리가 0이 아닌 종목)와 스팩은 주도주 후보로 부적합해 걸러냅니다.
+  최근 상장으로 60거래일 미만인 종목도 제외합니다.</p>
+
+  <h2>돌파확률</h2>
+  <p>기간 신고가 <code>H</code>를 넘으려면 종가 <code>C</code> 기준
+  <code>r = H/C − 1</code>만큼의 장중 상승이 필요합니다. 분포를 가정하는 대신,
+  <strong>이 종목이 실제로 그만한 움직임을 얼마나 자주 냈는지</strong>를 셉니다.</p>
+
+  <div class="formula">
+    h<sub>t</sub> &nbsp;= High<sub>t</sub> / Close<sub>t−1</sub> − 1 &nbsp;&nbsp;<span style="color:var(--muted)">일간 상방 확장폭</span><br>
+    z<sub>t</sub> &nbsp;= h<sub>t</sub> / σ<sub>t−1</sub> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--muted)">직전까지의 변동성으로 표준화</span><br>
+    z<sub>req</sub> = r / σ<sub>now</sub><br><br>
+    P = ( z<sub>t</sub> ≥ z<sub>req</sub> 인 과거 세션의 비율 )
+  </div>
+
+  <p>변동성으로 표준화하는 이유는, 변동성 국면이 바뀐 종목에서 단순 빈도가 오늘을
+  잘못 평가하기 때문입니다. σ는 항상 <em>예측 시점 직전까지</em>의 값만 사용해
+  미래 정보가 새지 않게 했습니다.</p>
+
+  <h2>검증 결과</h2>
+  <p>무작위 250종목 × 종목당 40거래일(총 9,336건)에 대해, 그 시점까지의 데이터만으로
+  확률을 계산하고 다음 거래일 실제 돌파 여부를 확인했습니다.</p>
+
+  <div class="card"><div class="tscroll"><table>
+    <thead><tr><th class="l">예측 구간</th><th>표본</th><th>평균 예측</th><th>실제 돌파율</th><th>오차</th></tr></thead>
+    <tbody>
+      <tr><td class="l">0–2%</td><td class="num">4,159</td><td class="num">0.89%</td><td class="num">0.67%</td><td class="num">−0.22%p</td></tr>
+      <tr><td class="l">2–5%</td><td class="num">2,025</td><td class="num">3.23%</td><td class="num">2.67%</td><td class="num">−0.57%p</td></tr>
+      <tr><td class="l">5–10%</td><td class="num">1,103</td><td class="num">7.10%</td><td class="num">5.89%</td><td class="num">−1.21%p</td></tr>
+      <tr><td class="l">10–20%</td><td class="num">816</td><td class="num">14.33%</td><td class="num">15.20%</td><td class="num">+0.87%p</td></tr>
+      <tr><td class="l">20–35%</td><td class="num">473</td><td class="num">26.52%</td><td class="num">27.70%</td><td class="num">+1.18%p</td></tr>
+      <tr><td class="l">35–55%</td><td class="num">346</td><td class="num">44.38%</td><td class="num">47.40%</td><td class="num">+3.02%p</td></tr>
+      <tr><td class="l">55%+</td><td class="num">414</td><td class="num">74.27%</td><td class="num">76.33%</td><td class="num">+2.06%p</td></tr>
+    </tbody>
+  </table></div></div>
+
+  <p>전체 평균 예측 <strong>9.47%</strong> vs 실제 <strong>9.45%</strong>,
+  기대 보정오차 <strong>0.70%p</strong>, <strong>AUC 0.913</strong>.
+  표시된 확률을 액면 그대로 읽어도 되며, 높은 확률 구간에서는 오히려 실제값이
+  2~3%p 높은 보수적 편향이 있습니다.</p>
+
+  <p>추세 상태(MA20 상·하)로 조건부 빈도를 구하고 Beta 사전분포로 축소하는 변형도
+  비교했지만 AUC 0.9027 vs 0.9038, 두 추정값 상관 0.996으로 사실상 차이가 없어
+  더 단순한 쪽을 채택했습니다.</p>
+
+  <h2>주도주 점수</h2>
+  <p>다섯 항목을 전 종목 대비 <strong>백분위</strong>로 환산해 가중 합산합니다.
+  절대값이 아니라 순위이므로, 점수는 항상 "오늘 시장의 다른 종목과 비교해서"라는 뜻입니다.</p>
+  <ul>
+    <li><strong>돌파확률 30%</strong> — 신고가가 오늘 사정권인가</li>
+    <li><strong>추세 25%</strong> — 로그가격 회귀 기울기 × 결정계수(R²). 가파르면서도 <em>깔끔한</em> 우상향에 높은 점수</li>
+    <li><strong>상대강도 20%</strong> — 같은 기간 소속 지수 대비 초과수익</li>
+    <li><strong>거래대금 15%</strong> — 최근 5일 평균 / 60일 평균</li>
+    <li><strong>근접도 10%</strong> — 신고가까지 남은 거리</li>
+  </ul>
+  <p><strong>주도주 후보</strong>는 여기에 더해 ① 20일선 위 ② 추세 기울기 양(+)
+  ③ 신고가가 20% 이내 ④ 20일 평균 거래대금 5억원 이상, 주가 1,000원 이상을
+  모두 만족하는 종목입니다.</p>
+
+  <h2>데이터</h2>
+  <p>시세는 네이버 금융, 상장목록은 KRX(FinanceDataReader), 테마 분류는 네이버 금융 기준입니다.
+  매 거래일 아침 6시(KST)에 전 거래일 종가 기준으로 갱신합니다.</p>
+  <p><strong>거래대금은 추정치</strong>입니다. 일별 거래대금 원본이 공개되지 않아
+  <code>거래량 × (시+고+저+종)/4</code>로 재구성했으며, KRX 실제값 대비 중앙값 오차
+  0.70%(90분위 2.46%)로 검증했습니다. 유동성 필터·순위용으로는 충분하지만
+  정확한 금액은 아닙니다.</p>
+
+  <h2>한계</h2>
+  <ul>
+    <li><strong>예보가 아니라 빈도입니다.</strong> "이런 설정에서 과거에 이만한 움직임이
+    얼마나 자주 나왔는가"이지, 오늘 오른다는 예측이 아닙니다.</li>
+    <li>개별 종목의 과거 변동 패턴이 유지된다고 가정합니다. 공시·유상증자·시장 충격 등
+    이벤트는 전혀 반영하지 않습니다.</li>
+    <li>신고가 돌파와 <em>돌파 후 상승 지속</em>은 다른 문제입니다. 이 사이트는 전자만 다룹니다.</li>
+    <li>상·하한가 제도(±30%)로 인한 분포 절단은 별도 보정하지 않았습니다.</li>
+    <li>투자 판단과 그 결과의 책임은 전적으로 이용자에게 있습니다.</li>
+  </ul>
+
+  <footer class="foot">
+    <p>재현: <code>python -m pipeline.backtest</code> ·
+    소스 <a href="https://github.com/yejooni/marketflow">github.com/yejooni/marketflow</a></p>
+  </footer>
+</main>
+
+<script type="module">
+  import { initTheme, initSearch, markNav, loadJSON } from './js/common.js';
+  initTheme(); markNav('about'); initSearch();
+  loadJSON('data/meta.json').then((m) => {
+    document.getElementById('sub').textContent =
+      `${m.trade_date} 기준 · 분석 종목 ${m.universe.toLocaleString('ko-KR')}개`;
+  }).catch(() => {});
+</script>
+</body>
+</html>

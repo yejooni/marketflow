@@ -1,0 +1,76 @@
+name: daily
+
+# Collects the previous session's data and publishes the site.
+#
+# The generated JSON (~26MB, fully rewritten every run) is never committed:
+# it goes straight from the runner into a Pages artifact, so repository
+# history stays small no matter how long this runs.
+
+on:
+  schedule:
+    # 06:00 KST = 21:00 UTC the previous day. Sun-Thu UTC == Mon-Fri KST,
+    # which covers every Korean trading day.
+    - cron: '0 21 * * 0-4'
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'pipeline/**'
+      - 'web/**'
+      - '.github/workflows/daily.yml'
+      - 'requirements.txt'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect and analyse
+        run: python -m pipeline.run
+
+      - name: Report output size
+        run: |
+          du -sh web/data
+          echo "stock files: $(ls web/data/stocks | wc -l)"
+
+      - uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on for the repo the first time this runs, so no manual
+          # settings change is needed.
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+    outputs:
+      built: 'true'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>테마 — MarketFlow</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html">Market<span>Flow</span></a>
+    <nav class="links">
+      <a href="index.html" data-page="home">주도주</a>
+      <a href="theme.html" data-page="theme">테마</a>
+      <a href="about.html" data-page="about">방법론</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="search">
+      <input id="q" type="text" placeholder="종목명 · 코드 검색  ( / )" autocomplete="off" spellcheck="false">
+      <div class="results" id="qres"></div>
+    </div>
+    <button class="icon-btn" id="theme-btn" title="테마 전환">☾</button>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <div class="page-head">
+    <h1 id="title">테마</h1>
+    <p id="sub">불러오는 중…</p>
+  </div>
+
+  <div class="toolbar" id="toolbar">
+    <label>기간
+      <select id="f-period"></select>
+    </label>
+    <label>테마 검색
+      <input type="text" id="f-name" placeholder="예: 반도체" autocomplete="off">
+    </label>
+    <span class="muted" id="count"></span>
+  </div>
+
+  <div class="card">
+    <div class="tscroll"><table id="tbl"><thead id="th"></thead><tbody id="tb"></tbody></table></div>
+    <div class="empty" id="empty" hidden></div>
+  </div>
+
+  <footer class="foot">
+    <p>테마 분류는 네이버 금융 기준이며, 종목당 가장 구체적인 테마 2개까지 표시합니다.
+    테마 수익률은 소속 종목의 <strong>중앙값</strong>입니다 — 소수 급등주에 휘둘리지 않도록 평균 대신 사용했습니다.</p>
+  </footer>
+</main>
+
+<script type="module" src="js/theme.js"></script>
+</body>
+</html>

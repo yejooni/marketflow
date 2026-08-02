@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>종목 상세 — MarketFlow</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html">Market<span>Flow</span></a>
+    <nav class="links">
+      <a href="index.html" data-page="home">주도주</a>
+      <a href="theme.html" data-page="theme">테마</a>
+      <a href="about.html" data-page="about">방법론</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="search">
+      <input id="q" type="text" placeholder="종목명 · 코드 검색  ( / )" autocomplete="off" spellcheck="false">
+      <div class="results" id="qres"></div>
+    </div>
+    <button class="icon-btn" id="theme-btn" title="테마 전환">☾</button>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <div class="detail-head" id="head"></div>
+
+  <div class="chart-card">
+    <div class="chart-bar">
+      <div class="grp" id="range-btns"></div>
+      <div class="spacer" style="flex:1"></div>
+      <div class="grp">
+        <button id="t-ma" class="on">이동평균</button>
+        <button id="t-lv" class="on">기간 신고가</button>
+      </div>
+    </div>
+    <div class="chart-host" id="chart"></div>
+  </div>
+
+  <div class="periodgrid" id="periods"></div>
+
+  <div class="grid2" style="margin-top:16px">
+    <div class="panel">
+      <h2>종목 정보</h2>
+      <div class="body"><dl class="kv" id="info"></dl></div>
+    </div>
+    <div class="panel">
+      <h2>추세 진단</h2>
+      <div class="body"><dl class="kv" id="diag"></dl></div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <p id="foot-note"></p>
+    <p>차트는 키움증권 HTS 관례를 따릅니다 — 양봉 적색, 음봉 청색, 이동평균 5·20·60·120일.
+    휠로 확대·축소, 드래그로 이동할 수 있습니다.</p>
+  </footer>
+</main>
+
+<script type="module" src="js/stock.js"></script>
+</body>
+</html>
