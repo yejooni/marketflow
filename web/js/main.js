@@ -1,6 +1,6 @@
 import {
   loadJSON, PERIOD_LABELS, nf, pct, money, dirClass, el,
-  initTheme, initSearch, markNav, makeSortable, themeChips, probCell,
+  initTheme, initSearch, markNav, makeSortable, themeChips, probCell, eok,
 } from './common.js';
 
 initTheme();
@@ -16,16 +16,19 @@ let leaders = {}, meta = {}, period = '1M', sorter = null;
 
 const filters = {
   market: document.getElementById('f-market'),
+  amount: document.getElementById('f-amount'),
   prob: document.getElementById('f-prob'),
   align: document.getElementById('f-align'),
 };
 
 function rowsFor(p) {
   const minProb = parseFloat(filters.prob.value) || 0;
+  const minAmount = parseFloat(filters.amount.value) || 0;
   const mkt = filters.market.value;
   const alignOnly = filters.align.checked;
   return (leaders[p] || []).filter((r) =>
     (!mkt || r.market === mkt)
+    && (r.amount ?? 0) >= minAmount
     && (r.prob ?? 0) >= minProb
     && (!alignOnly || r.ma_aligned));
 }
@@ -60,11 +63,13 @@ function render(rows) {
       el('td', { class: 'l' }, themeChips(r.themes)),
       el('td', { class: 'num' }, nf(r.close)),
       el('td', { class: 'num ' + dirClass(r.change_pct) }, pct(r.change_pct)),
+      el('td', { class: 'num' }, eok(r.amount)),
       el('td', { class: 'num' }, r.at_high ? el('span', { class: 'up' }, '돌파') : pct(r.gap_pct, 2, false)),
       el('td', {}, probCell(r.prob)),
       el('td', { class: 'num ' + dirClass(r.ret_pct) }, pct(r.ret_pct, 1)),
       el('td', { class: 'num ' + dirClass(r.rs) }, pct(r.rs, 1)),
       el('td', { class: 'num' }, r.vol_surge ? r.vol_surge.toFixed(2) + '×' : '–'),
+      el('td', { class: 'num' }, r.turnover != null ? (r.turnover * 100).toFixed(2) + '%' : '–'),
       el('td', {},
         el('div', { class: 'scorecell' },
           el('div', { class: 'track' },

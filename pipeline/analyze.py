@@ -46,11 +46,12 @@ PROB_FLOOR, PROB_CEIL = 0.005, 0.98
 
 # Leader-score weights. Components are cross-sectional percentiles (0-1).
 SCORE_WEIGHTS = {
-    "prob": 0.30,          # how reachable the breakout is
-    "trend": 0.25,         # how cleanly the stock is trending up
-    "rs": 0.20,            # outperformance vs its own index
-    "volume": 0.15,        # money rotating in
-    "proximity": 0.10,     # nearness to the high
+    "prob": 0.28,          # how reachable the breakout is
+    "trend": 0.22,         # how cleanly the stock is trending up
+    "rs": 0.18,            # outperformance vs its own index
+    "volume": 0.12,        # turnover accelerating against its own recent norm
+    "turnover": 0.12,      # turnover large relative to the company's size
+    "proximity": 0.08,     # nearness to the high
 }
 
 
@@ -201,6 +202,7 @@ def analyze_stock(
         "date": last["date"].strftime("%Y-%m-%d"),
         "volume": int(last["volume"]),
         "amount": float(last["amount"]),
+        "amount5": amount5,
         "amount20": amount20,
         "vol_surge": vol_surge,
         "volatility": sigma_now * 100.0 if np.isfinite(sigma_now) else float("nan"),
@@ -252,6 +254,11 @@ def score(results: list[dict]) -> None:
                 "trend": [r["periods"][label]["trend_quality"] for r in rows],
                 "rs": [r["periods"][label]["rs"] for r in rows],
                 "volume": [r["vol_surge"] for r in rows],
+                # Turnover against market cap. vol_surge only says a stock is
+                # busier than its own recent norm, which a sleepy small cap
+                # clears on any mild day; this asks whether the money moving
+                # through is large next to what the company is worth.
+                "turnover": [r.get("turnover") for r in rows],
                 "proximity": [-r["periods"][label]["gap_pct"] for r in rows],
             }
         )

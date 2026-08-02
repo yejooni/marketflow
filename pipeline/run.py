@@ -64,8 +64,17 @@ def main() -> int:
         if r is None:
             continue
         r["name"] = info.get("name", code)
-        r["marcap"] = info.get("marcap")
+        marcap = info.get("marcap")
+        r["marcap"] = marcap
         r["shares"] = info.get("shares")
+        # Turnover ratio: recent daily turnover as a share of market cap. Needs
+        # the listing's marcap, which is only joined here, so it is attached
+        # before scoring rather than inside analyze_stock.
+        r["turnover"] = (
+            r["amount5"] / marcap
+            if marcap and marcap > 0 and r["amount5"] and r["amount5"] > 0
+            else None
+        )
         results.append(r)
 
     if not results:

@@ -228,6 +228,9 @@ tbody tr:hover td { background: var(--surface-2); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
 }
 .chip:hover { border-color: var(--border-strong); }
+/* Inside tables two full-width chips crowd out the numeric columns; the full
+   name is still on the title attribute and on the detail page. */
+tbody .chip { max-width: 104px; }
 .badge {
   display: inline-block; padding: 1px 6px; border-radius: 5px;
   font-size: 10px; font-weight: 700; letter-spacing: .02em;

@@ -1,9 +1,13 @@
-# MarketFlow
+# GodFlow
 
-코스피·코스닥 전 종목의 **기간별 신고가 돌파 가능성**을 매 거래일 아침 6시(KST)에
+코스피·코스닥 전 종목의 **기간별 신고가 돌파 가능성**을 매 거래일 새벽 5시 17분(KST)에
 갱신해 정적 사이트로 배포합니다.
 
 **→ https://yejooni.github.io/marketflow**
+
+> 서비스 이름은 GodFlow, 저장소·URL은 `marketflow` 그대로입니다(배포 주소 유지).
+> 개발 시 반드시 [CLAUDE.md](CLAUDE.md)를 먼저 읽으세요 — 코드만 봐서는 알 수 없는
+> 결정 사항과 함정이 정리되어 있습니다.
 
 ## 무엇을 하는가
 
@@ -43,9 +47,14 @@ cd web && python -m http.server 8765    # http://localhost:8765
 
 ## 배포
 
-`.github/workflows/daily.yml` 이 매 거래일 21:00 UTC(= 06:00 KST)에 실행됩니다.
-생성 데이터(~26MB)는 **커밋하지 않고** Pages 아티팩트로 바로 올리므로
-저장소 히스토리가 커지지 않습니다. 수동 실행은 Actions 탭의 *Run workflow*.
+`.github/workflows/daily.yml` 이 매 거래일 20:17 UTC(= 05:17 KST)에 실행되며,
+수집·분석·배포까지 **약 2.5분** 걸립니다. 생성 데이터(~27MB)는 **커밋하지 않고**
+Pages 아티팩트로 바로 올리므로 저장소는 0.12MB로 유지됩니다.
+수동 실행은 Actions 탭의 *Run workflow*.
+
+`keepalive.yml` 은 지우지 마세요. GitHub은 저장소가 60일간 활동이 없으면 예약
+워크플로를 자동 비활성화하는데, 이 프로젝트는 커밋을 하지 않으므로 매달 하트비트가
+없으면 갱신이 조용히 멈춥니다.
 
 ## 데이터 주의사항
 

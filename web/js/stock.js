@@ -94,7 +94,8 @@ function buildChart(d) {
 }
 
 const COMPONENT_LABELS = {
-  prob: '돌파확률', trend: '추세', rs: '상대강도', volume: '거래대금', proximity: '근접도',
+  prob: '돌파확률', trend: '추세', rs: '상대강도',
+  volume: '대금증가', turnover: '시총대비', proximity: '근접도',
 };
 
 function periodCards(d) {
@@ -171,6 +172,7 @@ function panels(d) {
     ['거래량', nf(d.volume)],
     ['거래대금(추정)', money(d.amount)],
     ['20일 평균 거래대금', money(d.amount20)],
+    ['시총 대비 거래대금', d.turnover != null ? (d.turnover * 100).toFixed(2) + '%' : '–'],
     ['시가총액', d.marcap ? money(d.marcap) : '–'],
     ['상장주식수', d.shares ? nf(d.shares) : '–'],
   ];

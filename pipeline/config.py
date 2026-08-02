@@ -62,4 +62,8 @@ MIN_HISTORY = 5
 # drop real leaders off the board; failing keeps the previous deploy live.
 MIN_COVERAGE = 0.90
 
-TOP_N_LEADERS = 60  # per period, written to the main page payload
+# Per period, written to the main page payload. High enough to carry every
+# candidate: the browser filters this list (거래대금, 시장, 확률), so trimming
+# by score first would hide qualifying stocks that happen to rank lower. At a
+# few hundred rows the payload is still trivial, so this is only a safety cap.
+TOP_N_LEADERS = 500

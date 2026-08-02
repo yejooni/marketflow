@@ -33,6 +33,15 @@ export function money(v) {
   return nf(v);
 }
 
+/** Won -> 억 units, the denomination the 거래대금 filter is expressed in.
+ *  Whole 억 above 100 (nobody reads decimals on a 1,234억 print), one decimal
+ *  below that so small caps do not all collapse to the same number. */
+export function eok(v) {
+  if (v == null || !isFinite(v)) return '–';
+  const e = v / 1e8;
+  return e >= 100 ? Math.round(e).toLocaleString('ko-KR') : e.toFixed(1);
+}
+
 /** Korean market convention: positive is red, negative is blue. */
 export const dirClass = (v) => (v > 0 ? 'up' : v < 0 ? 'down' : 'flat');
 

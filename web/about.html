@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>방법론 — MarketFlow</title>
+<title>방법론 — GodFlow</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
 <style>
@@ -23,7 +23,7 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="index.html">Market<span>Flow</span></a>
+    <a class="brand" href="index.html">God<span>Flow</span></a>
     <nav class="links">
       <a href="index.html" data-page="home">주도주</a>
       <a href="theme.html" data-page="theme">테마</a>
@@ -97,22 +97,27 @@
   더 단순한 쪽을 채택했습니다.</p>
 
   <h2>주도주 점수</h2>
-  <p>다섯 항목을 전 종목 대비 <strong>백분위</strong>로 환산해 가중 합산합니다.
+  <p>여섯 항목을 전 종목 대비 <strong>백분위</strong>로 환산해 가중 합산합니다.
   절대값이 아니라 순위이므로, 점수는 항상 "오늘 시장의 다른 종목과 비교해서"라는 뜻입니다.</p>
   <ul>
-    <li><strong>돌파확률 30%</strong> — 신고가가 오늘 사정권인가</li>
-    <li><strong>추세 25%</strong> — 로그가격 회귀 기울기 × 결정계수(R²). 가파르면서도 <em>깔끔한</em> 우상향에 높은 점수</li>
-    <li><strong>상대강도 20%</strong> — 같은 기간 소속 지수 대비 초과수익</li>
-    <li><strong>거래대금 15%</strong> — 최근 5일 평균 / 60일 평균</li>
-    <li><strong>근접도 10%</strong> — 신고가까지 남은 거리</li>
+    <li><strong>돌파확률 28%</strong> — 신고가가 오늘 사정권인가</li>
+    <li><strong>추세 22%</strong> — 로그가격 회귀 기울기 × 결정계수(R²). 가파르면서도 <em>깔끔한</em> 우상향에 높은 점수</li>
+    <li><strong>상대강도 18%</strong> — 같은 기간 소속 지수 대비 초과수익</li>
+    <li><strong>거래대금 증가 12%</strong> — 최근 5일 평균 / 60일 평균</li>
+    <li><strong>시총 대비 거래대금 12%</strong> — 최근 5일 평균 거래대금 ÷ 시가총액</li>
+    <li><strong>근접도 8%</strong> — 신고가까지 남은 거리</li>
   </ul>
+  <p>거래대금 항목이 둘인 이유는 서로 다른 질문이기 때문입니다. <em>거래대금 증가</em>는
+  "이 종목 평소보다 붐비는가"만 보는데, 평소 거래가 없다시피 한 소형주는 조금만 움직여도
+  이 값이 튑니다. <em>시총 대비 거래대금</em>은 "회사 몸집에 비해 실제로 큰 돈이 도는가"를
+  물어, 규모를 감안한 자금 유입을 잡아냅니다.</p>
   <p><strong>주도주 후보</strong>는 여기에 더해 ① 20일선 위 ② 추세 기울기 양(+)
   ③ 신고가가 20% 이내 ④ 20일 평균 거래대금 5억원 이상, 주가 1,000원 이상을
   모두 만족하는 종목입니다.</p>
 
   <h2>데이터</h2>
   <p>시세는 네이버 금융, 상장목록은 KRX(FinanceDataReader), 테마 분류는 네이버 금융 기준입니다.
-  매 거래일 아침 6시(KST)에 전 거래일 종가 기준으로 갱신합니다.</p>
+  매 거래일 새벽 5시 17분(KST)에 전 거래일 종가 기준으로 갱신합니다.</p>
   <p><strong>거래대금은 추정치</strong>입니다. 일별 거래대금 원본이 공개되지 않아
   <code>거래량 × (시+고+저+종)/4</code>로 재구성했으며, KRX 실제값 대비 중앙값 오차
   0.70%(90분위 2.46%)로 검증했습니다. 유동성 필터·순위용으로는 충분하지만
