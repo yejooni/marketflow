@@ -144,7 +144,12 @@ def analyze_stock(
 
     periods: dict[str, dict] = {}
     for label, win in config.PERIODS.items():
-        if len(df) < min(win, config.MIN_HISTORY):
+        # The window must actually be there. Gating on min(win, MIN_HISTORY)
+        # used to let a 63-bar stock report its 63-day high as a "12개월
+        # 신고가" -- and since a fresh listing near its all-time high then
+        # showed a near-zero gap on every period at once, it climbed the
+        # leader board on highs that did not exist.
+        if len(df) < win:
             continue
         seg = df.tail(win)
         high = float(seg["high"].max())
@@ -185,9 +190,9 @@ def analyze_stock(
             "prob_n": prob_n,
         }
 
-    if not periods:
-        return None
-
+    # A stock with no complete period is still kept: it gets a page, a chart
+    # and search visibility, just no rankings. Dropping it outright is how
+    # recent listings silently vanished from the site.
     return {
         "code": code,
         "market": market,
@@ -202,6 +207,7 @@ def analyze_stock(
         "ma_aligned": aligned,
         "uptrend": uptrend_now,
         "liquid": bool(amount20 >= config.MIN_AVG_AMOUNT and close >= config.MIN_PRICE),
+        "bars": int(len(df)),
         "periods": periods,
         "_df": df,
     }

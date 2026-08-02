@@ -1,6 +1,6 @@
 import {
   loadJSON, PERIOD_LABELS, nf, pct, money, dirClass, el,
-  initTheme, initSearch, markNav, makeSortable, themeChips,
+  initTheme, initSearch, markNav, makeSortable, themeChips, probCell,
 } from './common.js';
 
 initTheme();
@@ -50,7 +50,6 @@ function render(rows) {
   emptyBox.hidden = true;
 
   rows.forEach((r, i) => {
-    const probPct = (r.prob ?? 0) * 100;
     const tr = el('tr', { onclick: () => (location.href = `stock.html?code=${r.code}`) },
       el('td', { class: 'l rank' }, String(i + 1)),
       el('td', { class: 'l' },
@@ -62,11 +61,7 @@ function render(rows) {
       el('td', { class: 'num' }, nf(r.close)),
       el('td', { class: 'num ' + dirClass(r.change_pct) }, pct(r.change_pct)),
       el('td', { class: 'num' }, r.at_high ? el('span', { class: 'up' }, '돌파') : pct(r.gap_pct, 2, false)),
-      el('td', {},
-        el('div', { class: 'meter' },
-          el('div', { class: 'track' },
-            el('div', { class: 'fill', style: `width:${Math.min(100, probPct)}%` })),
-          el('span', { class: 'val' }, probPct.toFixed(1) + '%'))),
+      el('td', {}, probCell(r.prob)),
       el('td', { class: 'num ' + dirClass(r.ret_pct) }, pct(r.ret_pct, 1)),
       el('td', { class: 'num ' + dirClass(r.rs) }, pct(r.rs, 1)),
       el('td', { class: 'num' }, r.vol_surge ? r.vol_surge.toFixed(2) + '×' : '–'),

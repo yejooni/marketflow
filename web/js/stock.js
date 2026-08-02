@@ -101,7 +101,22 @@ function periodCards(d) {
   const box = document.getElementById('periods');
   box.innerHTML = '';
 
+  const shown = Object.keys(d.periods).length;
+  const missing = Object.keys(PERIOD_LABELS).filter((k) => !(k in d.periods));
+
+  if (!shown) {
+    box.appendChild(el('div', { class: 'panel', style: 'grid-column:1/-1' },
+      el('div', { class: 'body' },
+        el('strong', {}, '분석 기간이 아직 부족합니다'),
+        el('div', { class: 'note', style: 'margin-top:6px' },
+          `상장 이후 거래일이 ${nf(d.bars)}일뿐이라 가장 짧은 1개월(20일) 신고가도 `
+          + '아직 계산할 수 없습니다. 위 차트로 시세는 확인할 수 있고, '
+          + '거래일이 쌓이면 자동으로 분석에 포함됩니다.'))));
+    return;
+  }
+
   for (const [k, p] of Object.entries(d.periods)) {
+    const hasProb = p.prob != null;
     const probPct = (p.prob ?? 0) * 100;
 
     const bars = el('div', { class: 'bars' },
@@ -117,9 +132,11 @@ function periodCards(d) {
         p.at_high ? el('span', { class: 'badge hi' }, '돌파 중') : null,
         p.candidate ? el('span', { class: 'badge hi' }, '주도주 후보') : null),
 
-      el('div', { class: 'big ' + (probPct >= 20 ? 'up' : '') }, probPct.toFixed(1) + '%'),
+      el('div', { class: 'big ' + (hasProb && probPct >= 20 ? 'up' : '') },
+        hasProb ? probPct.toFixed(1) + '%' : '–'),
       el('div', { class: 'note', style: 'margin-bottom:10px' },
-        '오늘 장중 돌파 빈도 · 표본 ', nf(p.prob_n), '일'),
+        hasProb ? `오늘 장중 돌파 빈도 · 표본 ${nf(p.prob_n)}일`
+                : '표본이 부족해 확률을 내지 않습니다'),
 
       el('dl', { class: 'kv' },
         el('dt', {}, '기간 고가'), el('dd', {}, nf(p.high)),
@@ -135,6 +152,13 @@ function periodCards(d) {
           '주도주 점수 ', el('strong', {}, (p.score ?? 0).toFixed(0))),
         bars),
     ));
+  }
+
+  if (missing.length) {
+    box.appendChild(el('div', { class: 'note', style: 'grid-column:1/-1' },
+      `상장 이후 거래일이 ${nf(d.bars)}일이라 `
+      + missing.map((k) => PERIOD_LABELS[k]).join(' · ')
+      + ' 신고가는 기간이 채워지지 않아 표시하지 않습니다.'));
   }
 }
 

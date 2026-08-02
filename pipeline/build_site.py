@@ -91,6 +91,7 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -
             "ma_aligned": r["ma_aligned"],
             "uptrend": r["uptrend"],
             "liquid": r["liquid"],
+            "bars": r["bars"],
             "marcap": r.get("marcap"),
             "shares": r.get("shares"),
             "ohlcv": {

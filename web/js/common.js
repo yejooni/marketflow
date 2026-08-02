@@ -211,6 +211,20 @@ export function makeSortable(table, rows, render, initial) {
   return st;
 }
 
+/** Probability cell: a bar for comparison plus the value. Null means the
+ *  sample was too small to estimate, which must not read as 0%. */
+export function probCell(prob) {
+  if (prob == null || !isFinite(prob)) {
+    return el('div', { class: 'meter' },
+      el('span', { class: 'val muted', title: '표본 부족' }, '–'));
+  }
+  const p = prob * 100;
+  return el('div', { class: 'meter' },
+    el('div', { class: 'track' },
+      el('div', { class: 'fill', style: `width:${Math.min(100, p)}%` })),
+    el('span', { class: 'val' }, p.toFixed(1) + '%'));
+}
+
 export function themeChips(themes, limit = 2) {
   return (themes || []).slice(0, limit).map((t) =>
     el('a', { class: 'chip', href: `theme.html?id=${t.id}`, title: t.name,

@@ -1,6 +1,6 @@
 import {
   loadJSON, PERIOD_LABELS, nf, pct, money, dirClass, el,
-  initTheme, initSearch, markNav, makeSortable, themeChips,
+  initTheme, initSearch, markNav, makeSortable, themeChips, probCell,
 } from './common.js';
 
 initTheme();
@@ -122,7 +122,6 @@ async function detailView(t) {
     countEl.textContent = `${sorted.length}종목`;
     emptyBox.hidden = sorted.length > 0;
     sorted.forEach((r, i) => {
-      const probPct = (r.prob ?? 0) * 100;
       tb.appendChild(el('tr', { onclick: () => (location.href = `stock.html?code=${r.code}`) },
         el('td', { class: 'l rank' }, String(i + 1)),
         el('td', { class: 'l' },
@@ -131,12 +130,9 @@ async function detailView(t) {
           r.candidate ? el('span', { class: 'badge hi', style: 'margin-left:6px' }, '후보') : null),
         el('td', { class: 'num' }, nf(r.close)),
         el('td', { class: 'num ' + dirClass(r.change_pct) }, pct(r.change_pct)),
-        el('td', { class: 'num' }, r.at_high ? el('span', { class: 'up' }, '돌파')
-                                             : pct(r.gap_pct, 2, false)),
-        el('td', {}, el('div', { class: 'meter' },
-          el('div', { class: 'track' },
-            el('div', { class: 'fill', style: `width:${Math.min(100, probPct)}%` })),
-          el('span', { class: 'val' }, probPct.toFixed(1) + '%'))),
+        el('td', { class: 'num' }, r.gap_pct == null ? '–'
+          : r.at_high ? el('span', { class: 'up' }, '돌파') : pct(r.gap_pct, 2, false)),
+        el('td', {}, probCell(r.prob)),
         el('td', { class: 'num ' + dirClass(r.ret_pct) }, pct(r.ret_pct, 1)),
         el('td', { class: 'num' }, r.score != null ? r.score.toFixed(0) : '–'),
       ));

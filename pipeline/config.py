@@ -50,8 +50,12 @@ PERIODS = {
 # A breakout is "in reach today" if the high sits within this much upside.
 REACH_PCT = 20.0
 
-# Minimum candles before a stock is analysed at all (recent IPOs).
-MIN_HISTORY = 60
+# Minimum candles for a stock to appear on the site at all. Deliberately tiny:
+# a listing only days old still has a readable chart, and someone searching for
+# it should find it rather than conclude the site does not know about it.
+# Whether any *period* can be analysed is decided separately, per period, by
+# that period's own window length.
+MIN_HISTORY = 5
 
 # Abort rather than publish if this share of the universe failed to download.
 # A half-fetched day would quietly replace a good dataset with a worse one and
