@@ -157,12 +157,24 @@ export async function initSearch() {
   });
 }
 
-/** Sortable tables: click a th with data-sort to reorder. */
+/** Sortable tables: click a th with data-sort to reorder.
+ *
+ * Callers re-invoke this whenever the filtered row set changes, so the header
+ * listeners are bound once per table and kept on the element. Re-binding each
+ * time would stack handlers and make one click toggle direction repeatedly.
+ */
 export function makeSortable(table, rows, render, initial) {
-  let key = initial.key, dir = initial.dir || -1;
+  const st = table._mfSort || (table._mfSort = {
+    key: initial.key,
+    dir: initial.dir || -1,
+    bound: false,
+  });
+  st.rows = rows;
+  st.render = render;
 
   const apply = () => {
-    const sorted = [...rows].sort((a, b) => {
+    const { key, dir } = st;
+    const sorted = [...st.rows].sort((a, b) => {
       const x = a[key], y = b[key];
       const xn = x == null || (typeof x === 'number' && !isFinite(x));
       const yn = y == null || (typeof y === 'number' && !isFinite(y));
@@ -172,7 +184,7 @@ export function makeSortable(table, rows, render, initial) {
       if (typeof x === 'string') return dir * x.localeCompare(y, 'ko');
       return dir * (x - y);
     });
-    render(sorted);
+    st.render(sorted);
     table.querySelectorAll('th[data-sort]').forEach((th) => {
       const a = th.querySelector('.arrow');
       if (a) a.remove();
@@ -181,18 +193,22 @@ export function makeSortable(table, rows, render, initial) {
       }
     });
   };
+  st.apply = apply;
 
-  table.querySelectorAll('th[data-sort]').forEach((th) => {
-    th.addEventListener('click', () => {
-      const k = th.dataset.sort;
-      if (k === key) dir = -dir;
-      else { key = k; dir = th.dataset.asc ? 1 : -1; }
-      apply();
+  if (!st.bound) {
+    st.bound = true;
+    table.querySelectorAll('th[data-sort]').forEach((th) => {
+      th.addEventListener('click', () => {
+        const k = th.dataset.sort;
+        if (k === st.key) st.dir = -st.dir;
+        else { st.key = k; st.dir = th.dataset.asc ? 1 : -1; }
+        st.apply();
+      });
     });
-  });
+  }
 
   apply();
-  return { apply };
+  return st;
 }
 
 export function themeChips(themes, limit = 2) {

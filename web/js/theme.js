@@ -21,6 +21,9 @@ const nameInput = document.getElementById('f-name');
 let themes = [], meta = {}, period = '1M';
 
 function headRow(cells) {
+  // New th elements need fresh listeners, and the two views sort on different
+  // keys, so drop any sort state held on the table.
+  delete tbl._mfSort;
   thead.innerHTML = '';
   thead.appendChild(el('tr', {}, ...cells.map((c) =>
     el('th', {
