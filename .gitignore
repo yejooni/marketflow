@@ -1,0 +1,13 @@
+.claude/settings.local.json
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated data. Never committed: the daily job regenerates it and Pages
+# serves it from a build artifact, which keeps repo history from ballooning.
+web/data/
+cache/
+*.parquet
+.DS_Store
