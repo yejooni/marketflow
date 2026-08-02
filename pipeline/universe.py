@@ -7,6 +7,7 @@ shares and SPACs, neither of which behaves like a momentum leader.
 from __future__ import annotations
 
 import re
+import time
 
 import pandas as pd
 
@@ -24,11 +25,31 @@ COMMON_CODE_RE = re.compile(r"^[0-9A-Z]{5}0$")
 SPAC_RE = re.compile(r"스팩|기업인수목적")
 
 
-def load_universe() -> pd.DataFrame:
-    """Return a DataFrame of tradable common shares with listing metadata."""
+def _fetch_listing(attempts: int = 4):
+    """The listing is a hard dependency and a single request, so retry it.
+
+    An unattended daily job should not abort because one call happened to time
+    out; without this the whole run dies before a single price is fetched.
+    """
     import FinanceDataReader as fdr
 
-    listing = fdr.StockListing("KRX")
+    last = None
+    for i in range(attempts):
+        try:
+            listing = fdr.StockListing("KRX")
+            if listing is not None and len(listing) > 1000:
+                return listing
+            last = RuntimeError(f"listing too small: {0 if listing is None else len(listing)} rows")
+        except Exception as e:  # network / upstream format changes
+            last = e
+        print(f"  WARN: KRX listing attempt {i + 1}/{attempts} failed ({last})", flush=True)
+        time.sleep(3 * (i + 1))
+    raise RuntimeError(f"could not load KRX listing after {attempts} attempts") from last
+
+
+def load_universe() -> pd.DataFrame:
+    """Return a DataFrame of tradable common shares with listing metadata."""
+    listing = _fetch_listing()
     listing = listing[listing["Market"].isin(config.MARKETS)].copy()
 
     listing["is_common"] = listing["Code"].str.match(COMMON_CODE_RE)

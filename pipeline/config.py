@@ -51,4 +51,9 @@ REACH_PCT = 20.0
 # Minimum candles before a stock is analysed at all (recent IPOs).
 MIN_HISTORY = 60
 
+# Abort rather than publish if this share of the universe failed to download.
+# A half-fetched day would quietly replace a good dataset with a worse one and
+# drop real leaders off the board; failing keeps the previous deploy live.
+MIN_COVERAGE = 0.90
+
 TOP_N_LEADERS = 60  # per period, written to the main page payload

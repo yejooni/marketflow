@@ -9,7 +9,7 @@ import argparse
 import sys
 import time
 
-from . import analyze, build_site, prices, themes as themes_mod, universe
+from . import analyze, build_site, config, prices, themes as themes_mod, universe
 
 
 def main() -> int:
@@ -37,6 +37,18 @@ def main() -> int:
     print("[3/5] prices", flush=True)
     codes = uni["code"].tolist()
     frames = prices.fetch_all(codes)
+
+    coverage = len(frames) / max(1, len(codes))
+    print(f"  coverage: {coverage:.1%}", flush=True)
+    if coverage < config.MIN_COVERAGE:
+        print(
+            f"ERROR: only {len(frames)}/{len(codes)} stocks downloaded "
+            f"({coverage:.1%} < {config.MIN_COVERAGE:.0%}). Aborting so the "
+            f"previously published data stays live.",
+            file=sys.stderr,
+        )
+        return 1
+
     indices = prices.fetch_indices()
     idx_ret = analyze.index_returns(indices)
     print(f"  index returns: "
