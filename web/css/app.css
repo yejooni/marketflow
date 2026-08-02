@@ -1,4 +1,4 @@
-/* MarketFlow — Korean market convention throughout: 상승 = 적색, 하락 = 청색. */
+/* GodFlow — Korean market convention throughout: 상승 = 적색, 하락 = 청색. */
 
 :root {
   --bg: #ffffff;
@@ -230,7 +230,7 @@ tbody tr:hover td { background: var(--surface-2); }
 .chip:hover { border-color: var(--border-strong); }
 /* Inside tables two full-width chips crowd out the numeric columns; the full
    name is still on the title attribute and on the detail page. */
-tbody .chip { max-width: 104px; }
+tbody .chip { max-width: 86px; }
 .badge {
   display: inline-block; padding: 1px 6px; border-radius: 5px;
   font-size: 10px; font-weight: 700; letter-spacing: .02em;
@@ -241,7 +241,7 @@ tbody .chip { max-width: 104px; }
 /* probability meter — bar length is the encoding, text is the value */
 .meter { display: flex; align-items: center; gap: 7px; justify-content: flex-end; }
 .meter .track {
-  width: 52px; height: 5px; border-radius: 3px; background: var(--surface-2);
+  width: 46px; height: 5px; border-radius: 3px; background: var(--surface-2);
   overflow: hidden; border: 1px solid var(--border);
 }
 .meter .fill { height: 100%; background: var(--up); border-radius: 3px; }
@@ -290,6 +290,33 @@ footer.foot a { color: var(--accent); }
 .chart-bar button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .chart-host { position: relative; width: 100%; }
 .chart-host canvas { display: block; width: 100%; touch-action: none; }
+
+/* Kiwoom-style hover readout. pointer-events:none so it never eats the
+   mousemove that positions it. */
+.chart-tip {
+  position: absolute; display: none; z-index: 5; pointer-events: none;
+  background: var(--bg); border: 1px solid var(--border-strong);
+  border-radius: 7px; padding: 7px 9px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.22);
+  font-size: 11.5px; line-height: 1.5; white-space: nowrap;
+}
+.chart-tip .d {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 4px;
+}
+.chart-tip table { border-collapse: collapse; }
+.chart-tip th {
+  text-align: left; font-weight: 500; color: var(--muted);
+  padding: 1px 10px 1px 0; font-size: 11px;
+}
+.chart-tip td {
+  text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums;
+  padding: 1px 0; color: var(--ink);
+}
+.chart-tip td.p { padding-left: 9px; }
+.chart-tip i { font-style: normal; font-size: 10.5px; }
+.chart-tip .up { color: var(--up); }
+.chart-tip .down { color: var(--down); }
 
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 

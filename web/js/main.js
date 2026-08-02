@@ -63,6 +63,7 @@ function render(rows) {
       el('td', { class: 'l' }, themeChips(r.themes)),
       el('td', { class: 'num' }, nf(r.close)),
       el('td', { class: 'num ' + dirClass(r.change_pct) }, pct(r.change_pct)),
+      el('td', { class: 'num' }, eok(r.marcap)),
       el('td', { class: 'num' }, eok(r.amount)),
       el('td', { class: 'num' }, r.at_high ? el('span', { class: 'up' }, '돌파') : pct(r.gap_pct, 2, false)),
       el('td', {}, probCell(r.prob)),

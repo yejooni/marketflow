@@ -56,6 +56,22 @@ function fmtDate(s) {
   return `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}`;
 }
 
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+function fmtDateFull(s) {
+  const d = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+  return `${fmtDate(s)} (${WEEKDAYS[d.getDay()]})`;
+}
+
+function fmtEok(v) {
+  const e = v / 1e8;
+  return e >= 100 ? Math.round(e).toLocaleString('ko-KR') : e.toFixed(1);
+}
+
+function signed(p) {
+  return (p > 0 ? '+' : '') + p.toFixed(2) + '%';
+}
+
 export class KiwoomChart {
   constructor(host, data, opts = {}) {
     this.host = host;
@@ -65,7 +81,15 @@ export class KiwoomChart {
     this.host.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d');
 
+    // Tooltip lives in the DOM rather than on the canvas: text layout, wrapping
+    // and theme colours come free, and it can overflow the plot area cleanly.
+    this.tip = document.createElement('div');
+    this.tip.className = 'chart-tip';
+    this.host.appendChild(this.tip);
+
     this.hover = null;
+    this.hoverPane = 'price';
+    this.pointer = null;
     this.drag = null;
     this.setData(data);
 
@@ -78,14 +102,18 @@ export class KiwoomChart {
     }
 
     this.canvas.addEventListener('mousemove', (e) => this.onMove(e));
-    this.canvas.addEventListener('mouseleave', () => { this.hover = null; this.draw(); });
+    this.canvas.addEventListener('mouseleave', () => {
+      this.hover = null; this.pointer = null; this.draw();
+    });
     this.canvas.addEventListener('mousedown', (e) => this.onDown(e));
     window.addEventListener('mouseup', () => { this.drag = null; });
     this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
 
     this.canvas.addEventListener('touchstart', (e) => this.onTouch(e), { passive: true });
     this.canvas.addEventListener('touchmove', (e) => this.onTouch(e), { passive: true });
-    this.canvas.addEventListener('touchend', () => { this.hover = null; this.draw(); });
+    this.canvas.addEventListener('touchend', () => {
+      this.hover = null; this.pointer = null; this.draw();
+    });
 
     this.resize();
   }
@@ -220,11 +248,17 @@ export class KiwoomChart {
       return;
     }
     if (p.x < L.plotL || p.x > L.plotR) {
-      if (this.hover !== null) { this.hover = null; this.draw(); }
+      if (this.hover !== null) { this.hover = null; this.pointer = null; this.draw(); }
       return;
     }
     const i = Math.max(this.view.a, Math.min(this.view.b - 1, this.indexAt(p.x, L)));
-    if (i !== this.hover) { this.hover = i; this.draw(); }
+    // Which pane the cursor is in decides what the tooltip reports.
+    const pane = p.y >= L.volT - PANE_GAP / 2 ? 'volume' : 'price';
+    const changed = i !== this.hover || pane !== this.hoverPane;
+    this.hover = i;
+    this.hoverPane = pane;
+    this.pointer = p;
+    if (changed) this.draw(); else this.placeTip(p);
   }
 
   onDown(e) {
@@ -251,9 +285,13 @@ export class KiwoomChart {
     const L = this.layout();
     const r = this.canvas.getBoundingClientRect();
     const x = e.touches[0].clientX - r.left;
+    const y = e.touches[0].clientY - r.top;
     if (x < L.plotL || x > L.plotR) return;
     const i = Math.max(this.view.a, Math.min(this.view.b - 1, this.indexAt(x, L)));
-    if (i !== this.hover) { this.hover = i; this.draw(); }
+    this.hover = i;
+    this.hoverPane = y >= L.volT - PANE_GAP / 2 ? 'volume' : 'price';
+    this.pointer = { x, y };
+    this.draw();
   }
 
   /* ---------- painting ---------- */
@@ -283,6 +321,57 @@ export class KiwoomChart {
     this.drawAxes(c, L, S, col);
     this.drawLegend(c, L, col);
     if (this.hover != null) this.drawCrosshair(c, L, S, col);
+    this.renderTip();
+  }
+
+  /* ---------- tooltip ---------- */
+
+  renderTip() {
+    const i = this.hover;
+    if (i == null || i < this.view.a || i >= this.view.b || !this.pointer) {
+      this.tip.style.display = 'none';
+      return;
+    }
+
+    const d = this.d;
+    const prev = i > 0 ? d.c[i - 1] : null;
+    const rel = (v) => (prev ? `<i class="${v >= prev ? 'up' : 'down'}">${signed((v / prev - 1) * 100)}</i>` : '');
+
+    let rows;
+    if (this.hoverPane === 'volume') {
+      const shares = this.opts.shares;
+      const amount = d.v[i] * (d.o[i] + d.h[i] + d.l[i] + d.c[i]) / 4;
+      rows = [
+        ['상장주식수', shares ? fmtInt(shares) : '–'],
+        ['거래량', fmtInt(d.v[i])],
+        ['주식수 대비', shares ? (d.v[i] / shares * 100).toFixed(2) + '%' : '–'],
+        ['거래대금(억)', fmtEok(amount)],
+      ].map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+    } else {
+      const cls = d.c[i] >= d.o[i] ? 'up' : 'down';
+      rows = [['시가', d.o[i]], ['고가', d.h[i]], ['저가', d.l[i]], ['종가', d.c[i]]]
+        .map(([k, v]) =>
+          `<tr><th>${k}</th><td class="${cls}">${fmtInt(v)}</td><td class="p">${rel(v)}</td></tr>`)
+        .join('');
+    }
+
+    this.tip.innerHTML = `<div class="d">${fmtDateFull(d.d[i])}</div><table>${rows}</table>`;
+    this.tip.style.display = 'block';
+    this.placeTip(this.pointer);
+  }
+
+  /** Keep the tooltip beside the cursor but always inside the chart. */
+  placeTip(p) {
+    if (this.tip.style.display === 'none') return;
+    const pad = 14;
+    const w = this.tip.offsetWidth;
+    const h = this.tip.offsetHeight;
+    let x = p.x + pad;
+    let y = p.y + pad;
+    if (x + w > this.w - 4) x = p.x - w - pad;
+    if (y + h > this.h - 4) y = Math.max(4, p.y - h - pad);
+    this.tip.style.left = Math.max(4, x) + 'px';
+    this.tip.style.top = y + 'px';
   }
 
   priceTicks(S) {

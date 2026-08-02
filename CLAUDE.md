@@ -10,6 +10,23 @@ from the code, so a fresh session (or a different model) can continue safely.
 - Working dir: `C:\Workspaces-cc\marketflow`
 - UI language is Korean. Write user-facing strings in Korean.
 
+## Keeping this file current — do this without being asked
+
+Claude Code loads this file automatically, so it is the only thing guaranteed to
+survive a new session or a model switch. Nothing updates it on its own. **Update
+it in the same commit as the change**, whenever you:
+
+- change a threshold, weight, schedule or data source (and say *why*);
+- hit a bug that the code alone would not warn the next person about — add it to
+  *Traps already hit*, with the symptom, not just the fix;
+- add or reject an approach after measuring — record the numbers so nobody
+  re-litigates it;
+- discover an environment quirk (a tool that is missing, a shell that misbehaves).
+
+Keep it short and specific. Facts recoverable by reading the code do not belong
+here; the reasoning behind them does. If something in here turns out to be wrong,
+correct it rather than appending a contradiction.
+
 ## What it does
 
 Every trading morning it collects ~2,530 KOSPI/KOSDAQ common shares, measures how
@@ -68,8 +85,12 @@ Deployment.
   `data.krx.co.kr` calls return `LOGOUT`. Do not reintroduce them.
 - **Listing: FinanceDataReader `StockListing("KRX")`.** ETFs/ETNs are already
   absent from it. Retried 4x — it is one request and a hard dependency.
-- **Themes: Naver theme directory**, up to 2 per stock, most *specific* first
-  (fewest members = most identifying).
+- **Themes: Naver theme directory**, up to **8** per stock (`MAX_THEMES_PER_STOCK`),
+  most *specific* first (fewest members = most identifying). Measured spread:
+  median 2, p90 5, max 31 (삼성전자). A cap of 2 carried only 62.5% of
+  memberships; 8 carries 97.8% and drops the tail where a stock belongs to so
+  many themes that none of them describes it. Tables render the first two
+  (`themeChips(themes, 2)`); the detail page renders all.
 - **거래대금 is ESTIMATED**: `volume x (O+H+L+C)/4`. No source publishes it
   historically. Validated at **0.70% median error** vs KRX actuals (close-only
   was 1.71%). Always label it 추정 in the UI.
@@ -172,6 +193,12 @@ min** (collect+analyse 110s).
 - Chart mimics 키움 HTS: filled red/blue candles, MA 5/20/60/120, volume pane,
   crosshair, right-hand price axis. Pure canvas, no library, so the conventions
   are exact.
+- **The hover tooltip is a DOM node, not canvas** (`.chart-tip`), so text layout
+  and theme colours come free. Its contents depend on the pane: the price pane
+  reports O/H/L/C with each value's % against the previous close; the volume
+  pane reports 상장주식수, 거래량, turnover of shares outstanding, and 거래대금.
+  The volume figures need `shares`, passed in via chart options from `stock.js`.
+  Keep `pointer-events: none` on it or it swallows the mousemove that moves it.
 - MA palette is validated for colour-vision deficiency in both themes. Light uses
   Kiwoom defaults `#FF0000/#CC00CC/#009900/#0000FF`; dark is re-stepped to
   `#F04A4A/#D45BD4/#2FA050/#4A86E8` (pure blue fails the dark lightness band).

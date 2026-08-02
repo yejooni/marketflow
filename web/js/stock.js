@@ -29,7 +29,8 @@ function head(d) {
       el('h1', {}, d.name, ' ', el('span', { class: 'code' }, d.code)),
       el('div', { style: 'margin-top:6px' },
         el('span', { class: 'chip' }, d.market),
-        ...themeChips(d.themes)),
+        // Detail page shows every theme; tables keep only the first two.
+        ...themeChips(d.themes, Infinity)),
     ),
     el('div', { class: 'spacer', style: 'flex:1' }),
     el('div', { class: 'px' },
@@ -37,7 +38,7 @@ function head(d) {
       el('span', { class: 'chg ' + dirClass(d.change_pct) }, pct(d.change_pct)),
     ),
   );
-  document.title = `${d.name} (${d.code}) — MarketFlow`;
+  document.title = `${d.name} (${d.code}) — GodFlow`;
 }
 
 function buildChart(d) {
@@ -53,6 +54,7 @@ function buildChart(d) {
     height: Math.max(360, Math.min(560, Math.round(window.innerHeight * 0.56))),
     levels,
     initialBars: 120,
+    shares: d.shares,   // lets the volume tooltip report turnover of float
   });
 
   const box = document.getElementById('range-btns');

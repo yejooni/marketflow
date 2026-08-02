@@ -1,9 +1,15 @@
 """Theme membership scraped from Naver Finance's theme directory.
 
-Naver groups stocks into ~280 curated themes. A stock often belongs to several;
-we keep at most two and prefer the *most specific* one -- membership count is a
-good proxy for specificity, since "HBM(고대역폭메모리)" identifies a stock far
-better than a 90-member catch-all like "지주사".
+Naver groups stocks into ~266 curated themes. A stock usually belongs to
+several, and they are kept *most specific first* -- membership count is a good
+proxy for specificity, since "HBM(고대역폭메모리)" identifies a stock far better
+than a 90-member catch-all like "지주사".
+
+Measured distribution: median 2 per stock, p90 5, p99 10, max 31 (삼성전자).
+Keeping only two covered just 62.5% of memberships; the current cap of eight
+covers 97.8% while dropping the tail where a stock belongs to so many themes
+that none of them characterises it. Tables still show the first two; the detail
+page shows all of them.
 """
 from __future__ import annotations
 
@@ -22,7 +28,7 @@ THEME_LINK_RE = re.compile(r'type=theme&no=(\d+)"[^>]*>([^<]+)<')
 MEMBER_RE = re.compile(r'/item/main\.naver\?code=([0-9A-Z]{6})"[^>]*>([^<]+)<')
 PAGE_RE = re.compile(r"theme\.naver\?&?page=(\d+)")
 
-MAX_THEMES_PER_STOCK = 2
+MAX_THEMES_PER_STOCK = 8
 
 
 def _session() -> requests.Session:

@@ -123,6 +123,7 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -
                 "themes": theme_objs(r["code"]),
                 "close": r["close"],
                 "change_pct": r["change_pct"],
+                "marcap": r.get("marcap"),
                 "vol_surge": r["vol_surge"],
                 "amount": r["amount"],
                 "amount20": r["amount20"],
@@ -155,7 +156,7 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -
         rows.append({
             "code": r["code"], "name": r["name"], "market": r["market"],
             "close": r["close"], "change_pct": r2(r["change_pct"]),
-            "vol_surge": r2(r["vol_surge"]),
+            "marcap": r.get("marcap"), "vol_surge": r2(r["vol_surge"]),
             "amount": round(r["amount"]) if math.isfinite(r["amount"]) else None,
             "amount20": round(r["amount20"]) if math.isfinite(r["amount20"]) else None,
             "turnover": round(r["turnover"], 6) if r.get("turnover") else None,
