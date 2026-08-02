@@ -9,8 +9,14 @@ name: daily
 on:
   schedule:
     # 06:00 KST = 21:00 UTC the previous day. Sun-Thu UTC == Mon-Fri KST,
-    # which covers every Korean trading day.
-    - cron: '0 21 * * 0-4'
+    # which covers every Korean trading day. At 06:00 KST on day D the runner's
+    # UTC date is D-1, which is exactly the last closed Korean session, so the
+    # fetch window needs no timezone juggling.
+    #
+    # Offset off the hour on purpose: GitHub queues scheduled runs under load
+    # and :00 is the most contended minute, so this trades an exact 06:00 for a
+    # more predictable start.
+    - cron: '17 21 * * 0-4'
   workflow_dispatch:
   push:
     branches: [master]

@@ -1,0 +1,36 @@
+name: keepalive
+
+# GitHub disables scheduled workflows after 60 days of repository inactivity,
+# and "activity" means commits. This project deliberately never commits: the
+# daily job ships its output as a Pages artifact so history stays small. That
+# combination means a repo nobody pushes to would go quiet for 60 days and the
+# 06:00 collection would stop without any failure to notice.
+#
+# So: touch a file monthly to reset that clock. The path is outside daily.yml's
+# push filters, so this never triggers a rebuild.
+
+on:
+  schedule:
+    - cron: '43 5 1 * *'   # 05:43 UTC on the 1st of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  touch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record a heartbeat
+        run: |
+          mkdir -p .github
+          date -u +'%Y-%m-%dT%H:%M:%SZ  scheduled-workflow keepalive' \
+            > .github/keepalive.txt
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .github/keepalive.txt
+          git commit -m 'chore: keepalive so the daily schedule stays enabled' \
+            || { echo 'nothing to commit'; exit 0; }
+          git push
