@@ -60,12 +60,18 @@ jobs:
           du -sh web/data
           echo "stock files: $(ls web/data/stocks | wc -l)"
 
-      # No configure-pages step: every path in web/ is relative, so the site
-      # needs no injected base path, and skipping it avoids depending on Pages
-      # admin permissions the default GITHUB_TOKEN does not have.
+      # Pages pins Cache-Control: max-age=600 with no way to override it, so a
+      # visitor can revalidate the HTML while still holding the previous JS.
+      # Stamping a build version onto every asset URL keeps the two in step.
+      - name: Stage site with cache-busted assets
+        run: python -m pipeline.stage_site _site
+
+      # No configure-pages step: every path is relative, so the site needs no
+      # injected base path, and skipping it avoids depending on Pages admin
+      # permissions the default GITHUB_TOKEN does not have.
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: _site
 
   deploy:
     needs: build

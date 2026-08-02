@@ -154,6 +154,11 @@ min** (collect+analyse 110s).
 - **`keepalive.yml` is load-bearing.** GitHub disables scheduled workflows after
   60 days of repo inactivity, and this project never commits. Without the monthly
   heartbeat the daily job dies silently. Do not delete it.
+- The artifact is `_site/`, produced by `pipeline/stage_site.py`, **not `web/`
+  directly.** Pages pins `Cache-Control: max-age=600` and cannot be configured,
+  so a visitor could revalidate the HTML while still holding the previous JS and
+  get a table whose rows do not match its headers. Staging stamps `?v=<build>`
+  onto asset URLs *and* module import specifiers. Tracked sources stay clean.
 - Collection **aborts below 90% coverage** (`MIN_COVERAGE`) so a partial day
   cannot replace good published data; the previous deploy stays live.
 - **Circuit breaker** in `prices.fetch_all`: >35% failures after 200 attempts
