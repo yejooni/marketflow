@@ -52,12 +52,9 @@ jobs:
           du -sh web/data
           echo "stock files: $(ls web/data/stocks | wc -l)"
 
-      - uses: actions/configure-pages@v5
-        with:
-          # Turns Pages on for the repo the first time this runs, so no manual
-          # settings change is needed.
-          enablement: true
-
+      # No configure-pages step: every path in web/ is relative, so the site
+      # needs no injected base path, and skipping it avoids depending on Pages
+      # admin permissions the default GITHUB_TOKEN does not have.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
