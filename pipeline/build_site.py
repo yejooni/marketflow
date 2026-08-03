@@ -19,6 +19,7 @@ import shutil
 from datetime import datetime, timezone, timedelta
 
 import numpy as np
+import pandas as pd
 
 from . import config, krx
 
@@ -110,8 +111,12 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
         ]
 
     # ---- per-stock detail -------------------------------------------------
+    served_candles = real_candles = 0
     for r in results:
         df = r["_full"].tail(config.SERVE_TRADING_DAYS)
+        served_candles += len(df)
+        if "amount_real" in df:
+            real_candles += int(df["amount_real"].sum())
         payload = {
             "code": r["code"],
             "name": r["name"],
@@ -141,6 +146,15 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
                 "l": [int(x) for x in df["low"]],
                 "c": [int(x) for x in df["close"]],
                 "v": [int(x) for x in df["volume"]],
+                # Turnover per candle. Sent only where KRX gave a real figure;
+                # otherwise omitted and the browser falls back to its own
+                # volume x (O+H+L+C)/4 estimate, so a partly-covered series is
+                # never presented as if it were all real.
+                "a": ([int(x) for x in df["amount"]]
+                      if bool(df.get("amount_real", pd.Series(dtype=bool)).any())
+                      else None),
+                "ar": ([bool(x) for x in df["amount_real"]]
+                       if "amount_real" in df else None),
             },
             "weekly": _weekly(r["_full"]),
             "periods": {k: _period_summary(v) for k, v in r["periods"].items()},
@@ -257,6 +271,11 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
         "reach_pct": config.REACH_PCT,
         # "krx" once real turnover is available; the UI drops the 추정 label.
         "amount_source": amount_source,
+        # Share of the served (1-year) candles carrying a real KRX figure. The
+        # rest keep the estimate, so the UI can be specific instead of implying
+        # the whole series is one or the other.
+        "amount_real_pct": round(real_candles / served_candles * 100, 1)
+        if served_candles else 0.0,
         "krx_key_expires": config.KRX_KEY_EXPIRES,
         "krx_key_days_left": _days_until(config.KRX_KEY_EXPIRES),
         # Statuses and field names only, never key material -- lets a failed

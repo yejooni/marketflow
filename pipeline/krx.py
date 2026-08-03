@@ -26,6 +26,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import numpy as np
 import requests
 
 from . import config
@@ -198,9 +199,15 @@ def apply_amounts(frames: dict, amounts: dict[str, dict[str, float]]) -> tuple[i
         if not got:
             continue
         col = df["amount"].to_numpy(dtype=float).copy()
+        flag = df["amount_real"].to_numpy(dtype=bool).copy() \
+            if "amount_real" in df else np.zeros(len(df), dtype=bool)
         for i in got:
             col[i] = real[i]
+            flag[i] = True
         df["amount"] = col
+        # Which candles carry a real figure, so the site can say so per candle
+        # instead of claiming the whole series is real.
+        df["amount_real"] = flag
         replaced += len(got)
     return replaced, total
 

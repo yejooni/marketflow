@@ -355,12 +355,15 @@ export class KiwoomChart {
     let rows;
     if (this.hoverPane === 'volume') {
       const shares = this.opts.shares;
-      const amount = d.v[i] * (d.o[i] + d.h[i] + d.l[i] + d.c[i]) / 4;
+      // Real turnover when KRX supplied it for this candle, else our estimate.
+      const real = d.a && d.ar && d.ar[i];
+      const amount = real ? d.a[i]
+        : d.v[i] * (d.o[i] + d.h[i] + d.l[i] + d.c[i]) / 4;
       rows = [
         ['상장주식수', shares ? fmtInt(shares) : '–'],
         ['거래량', fmtInt(d.v[i])],
         ['주식수 대비', shares ? (d.v[i] / shares * 100).toFixed(2) + '%' : '–'],
-        ['거래대금(억)', fmtEok(amount)],
+        [real ? '거래대금(억)' : '거래대금(억, 추정)', fmtEok(amount)],
       ].map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
     } else {
       const cls = d.c[i] >= d.o[i] ? 'up' : 'down';
