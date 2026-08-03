@@ -153,19 +153,21 @@
     // The turnover caveat depends on whether a KRX key is actually in use, so
     // it is written from the data rather than hard-coded in the page.
     const left = m.krx_key_days_left;
+    const pct = m.amount_real_pct;
     document.getElementById('amount-note').innerHTML = m.amount_source === 'krx'
       ? '<strong>거래대금은 KRX 실제값</strong>입니다. KRX 공식 OpenAPI'
-        + '(일별매매정보)에서 최근 250거래일을 받아옵니다. 그 이전 구간과 '
-        + 'API가 응답하지 않은 날은 <code>거래량 × (시+고+저+종)/4</code> 추정치로 '
-        + '대체하며, 이 추정은 실제값 대비 중앙값 오차 0.70%(90분위 2.46%)입니다.'
+        + `(일별매매정보)에서 받아오며, 최근 1년 봉의 <strong>${pct}%</strong>가 실제값입니다. `
+        + '이 API는 2010-01-04부터만 제공하므로 그 이전 구간과 응답이 없던 날은 '
+        + '<code>거래량 × (시+고+저+종)/4</code> 추정치로 대체하고, 차트 툴팁에 '
+        + '<em>(추정)</em>으로 구분 표시합니다.'
         + (left != null
             ? ` 인증키 만료일은 <strong>${m.krx_key_expires}</strong>(${left}일 남음)이며,`
               + ' 만료되면 자동으로 추정치로 되돌아갑니다.'
             : '')
       : '<strong>거래대금은 추정치</strong>입니다. 일별 원본이 공개되지 않아 '
-        + '<code>거래량 × (시+고+저+종)/4</code>로 재구성했으며, KRX 실제값 대비 '
-        + '중앙값 오차 0.70%(90분위 2.46%)로 검증했습니다. 유동성 필터·순위용으로는 '
-        + '충분하지만 정확한 금액은 아닙니다.';
+        + '<code>거래량 × (시+고+저+종)/4</code>로 재구성했습니다. KRX 실제값 '
+        + '93,854봉과 대조한 결과 중앙값 오차 0.50%, 90분위 1.75%, 99분위 4.87%로 '
+        + '유동성 필터·순위용으로는 충분하지만 정확한 금액은 아닙니다.';
   }).catch(() => {});
 </script>
 </body>

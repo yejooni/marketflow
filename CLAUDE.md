@@ -91,9 +91,14 @@ Deployment.
   memberships; 8 carries 97.8% and drops the tail where a stock belongs to so
   many themes that none of them describes it. Tables render the first two
   (`themeChips(themes, 2)`); the detail page renders all.
-- **거래대금 is ESTIMATED**: `volume x (O+H+L+C)/4`. No *free* source publishes
-  it historically. Validated at **0.70% median error** vs KRX actuals
-  (close-only was 1.71%). Always label it 추정 in the UI.
+- **거래대금 is REAL where KRX covers it, estimated elsewhere.** `pipeline/krx.py`
+  is live and supplies ~97.5% of the served year; the rest (pre-2010, or days
+  the API skipped) falls back to `volume x (O+H+L+C)/4`. Per-candle flags drive
+  the labelling, so never assume a series is wholly one or the other.
+  - The estimate was measured against 93,854 real candles: **median 0.50%**
+    error, p90 1.75%, p99 4.87%, +0.15% bias. It is *better* than the 0.70%
+    figure first published off a 58-sample check — if a doc still says 0.70%,
+    it is stale.
   - **pykrx does not solve this.** `get_market_ohlcv_by_date` works without
     credentials but falls back to a source with no 거래대금 column (시가·고가·
     저가·종가·거래량·등락률 only), and the KRX-backed calls print
@@ -112,9 +117,11 @@ Deployment.
   - **An issued key is not enough.** KRX's own 이용방법 has four steps, and the
     key is only step 1. Step 3 is **API 이용신청 per service, with admin
     approval** (the button sits on each API's detail page). Until that is
-    approved every call returns **401** and the run falls back — confirmed once
-    already, with 이용현황 listing zero applications while the key was valid.
-    If turnover is unexpectedly estimated, check entitlements before the key.
+    approved every call returns **401** and the run falls back — this happened,
+    with 이용현황 listing zero applications while the key was perfectly valid.
+    **If turnover is unexpectedly estimated, check entitlements before the key.**
+    Working shape once approved: 500 calls all HTTP 200, 249/250 sessions,
+    ~689k values, ~4 min added to the run.
   - Published spec: `ISU_CD`, `ACC_TRDVAL` (거래대금), plus `MKTCAP` and
     `LIST_SHRS`. Data starts **2010-01-04**; earlier sessions keep the estimate.
   - `meta.krx_diag` carries statuses and field names (never key material) so a
