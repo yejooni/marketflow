@@ -84,7 +84,8 @@ def _period_summary(p: dict) -> dict:
     return {k: p[k] for k in keys if k in p}
 
 
-def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -> None:
+def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
+          amount_source: str = "estimate") -> None:
     if config.DATA_DIR.exists():
         shutil.rmtree(config.DATA_DIR)
     config.STOCK_DIR.mkdir(parents=True, exist_ok=True)
@@ -244,6 +245,8 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -
         "candidates": counts,
         "periods": list(config.PERIODS),
         "reach_pct": config.REACH_PCT,
+        # "krx" once real turnover is available; the UI drops the 추정 label.
+        "amount_source": amount_source,
         "advancing": advancing,
         "declining": len(results) - advancing,
     }

@@ -48,6 +48,11 @@ MARKETS = ("KOSPI", "KOSDAQ")
 # Liquidity floor. Names below this are not tradeable in size and produce
 # meaningless breakout signals, so they are scored but flagged illiquid.
 MIN_AVG_AMOUNT = 500_000_000  # 5억원, 20-day average turnover
+
+# Sessions of real 거래대금 to pull from KRX when a key is configured. Covers
+# the served daily window, so both the rankings and the chart tooltip show real
+# figures. Each session costs two calls (KOSPI + KOSDAQ).
+KRX_DAYS = 250
 MIN_PRICE = 1_000
 
 # --- Analysis ---------------------------------------------------------------

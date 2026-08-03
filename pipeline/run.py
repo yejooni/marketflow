@@ -9,7 +9,7 @@ import argparse
 import sys
 import time
 
-from . import analyze, build_site, config, prices, themes as themes_mod, universe
+from . import analyze, build_site, config, krx, prices, themes as themes_mod, universe
 
 
 def main() -> int:
@@ -49,6 +49,23 @@ def main() -> int:
         )
         return 1
 
+    # Real 거래대금, if a KRX key is configured. Silently skipped otherwise, in
+    # which case every amount stays the volume x (O+H+L+C)/4 estimate.
+    amount_source = "estimate"
+    if krx.enabled():
+        sessions = sorted({
+            d.strftime("%Y%m%d")
+            for df in frames.values()
+            for d in df["date"].tail(config.KRX_DAYS)
+        })[-config.KRX_DAYS:]
+        real = krx.fetch_amounts(sessions)
+        replaced, total = krx.apply_amounts(frames, real)
+        if replaced:
+            amount_source = "krx"
+            print(f"  real 거래대금 applied to {replaced:,} candles", flush=True)
+    else:
+        print("  KRX key not set -- 거래대금 stays estimated", flush=True)
+
     indices = prices.fetch_indices()
     idx_ret = analyze.index_returns(indices)
     print(f"  index returns: "
@@ -86,7 +103,8 @@ def main() -> int:
 
     print("[5/5] build site data", flush=True)
     trade_date = max(r["date"] for r in results)
-    build_site.build(results, theme_dict, theme_map, trade_date)
+    build_site.build(results, theme_dict, theme_map, trade_date,
+                     amount_source=amount_source)
 
     print(f"done in {time.time() - t0:.0f}s (trade date {trade_date})", flush=True)
     return 0

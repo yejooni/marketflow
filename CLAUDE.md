@@ -97,9 +97,18 @@ Deployment.
   - **pykrx does not solve this.** `get_market_ohlcv_by_date` works without
     credentials but falls back to a source with no 거래대금 column (시가·고가·
     저가·종가·거래량·등락률 only), and the KRX-backed calls print
-    `KRX 로그인 실패` and return nothing. Real 거래대금 needs a data.krx.co.kr
-    account exported as `KRX_ID`/`KRX_PW`. If those ever exist as repo secrets,
-    a one-off backfill is worthwhile since history never changes.
+    `KRX 로그인 실패` and return nothing. It authenticates by POSTing a member
+    ID and password to data.krx.co.kr's login form (`website/comm/auth.py`),
+    which means handling an account password and depending on a login page.
+  - **`pipeline/krx.py` is the route instead**: KRX's official OpenAPI
+    (`data-dbg.krx.co.kr/svc/apis/sto/stk_bydd_trd` + `ksq_bydd_trd`), keyed by
+    an `AUTH_KEY` header — a key, not a password. It is **inert unless the
+    `KRX_AUTH_KEY` secret exists**; without it every amount stays estimated and
+    `meta.amount_source` is `"estimate"`, which is what makes the UI say 추정.
+    One call per market per session, `config.KRX_DAYS` sessions.
+    Verify a key with `python -m pipeline.krx --check [YYYYMMDD]`, which prints
+    the actual field names — the parser accepts several spellings so a rename
+    degrades to the estimate rather than crashing.
 
 ### The daily job refetches ALL history — keep it that way
 It pulls every session back to 1990 per stock, every run. **One request returns

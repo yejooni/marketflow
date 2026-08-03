@@ -53,6 +53,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Collect and analyse
+        # KRX_AUTH_KEY is optional. Absent, the pipeline logs that it is missing
+        # and keeps the estimated 거래대금; present, it fetches the real figures.
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
         run: python -m pipeline.run
 
       - name: Report output size

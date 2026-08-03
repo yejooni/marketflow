@@ -208,14 +208,15 @@ function periodCards(d) {
   }
 }
 
-function panels(d) {
+function panels(d, meta) {
+  const est = (meta?.amount_source ?? 'estimate') !== 'krx';
   const info = document.getElementById('info');
   const rows = [
     ['기준일', d.date],
     ['시장', d.market],
     ['종가', nf(d.close)],
     ['거래량', nf(d.volume)],
-    ['거래대금(추정)', money(d.amount)],
+    [est ? '거래대금(추정)' : '거래대금', money(d.amount)],
     ['20일 평균 거래대금', money(d.amount20)],
     ['시총 대비 거래대금', d.turnover != null ? (d.turnover * 100).toFixed(2) + '%' : '–'],
     ['시가총액', d.marcap ? money(d.marcap) : '–'],
@@ -248,9 +249,12 @@ function panels(d) {
       + '<div>상단 검색창에서 종목을 찾아보세요.</div></div>';
     return;
   }
-  let d;
+  let d, meta = null;
   try {
-    d = await loadJSON(`data/stocks/${code}.json`);
+    [d, meta] = await Promise.all([
+      loadJSON(`data/stocks/${code}.json`),
+      loadJSON('data/meta.json').catch(() => null),
+    ]);
   } catch {
     main.innerHTML = `<div class="empty"><strong>${code} 데이터를 찾을 수 없습니다</strong>`
       + '<div>분석 대상(코스피·코스닥 보통주)이 아니거나 상장 이력이 짧은 종목일 수 있습니다.</div></div>';
@@ -259,5 +263,5 @@ function panels(d) {
   head(d);
   buildChart(d);
   periodCards(d);
-  panels(d);
+  panels(d, meta);
 })();
