@@ -103,6 +103,20 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
 
     by_code = {r["code"]: r for r in results}
 
+    def amount_pct(r):
+        """Session turnover as a share of market cap.
+
+        Listed cap, not free float: 유동주식수 comes from disclosure filings and
+        is absent from every price source we use, so this understates stocks
+        with a large locked-up holding. Distinct from the score's `turnover`,
+        which averages five sessions.
+        """
+        cap = r.get("marcap")
+        amt = r.get("amount")
+        if not cap or cap <= 0 or amt is None or not math.isfinite(amt):
+            return None
+        return round(amt / cap * 100, 3)
+
     def theme_objs(code):
         return [
             {"id": t, "name": themes[t]["name"]}
@@ -177,6 +191,7 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
                 "close": r["close"],
                 "change_pct": r["change_pct"],
                 "marcap": r.get("marcap"),
+                "amount_pct": amount_pct(r),
                 "vol_surge": r["vol_surge"],
                 "amount": r["amount"],
                 "amount20": r["amount20"],
@@ -209,7 +224,8 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
         rows.append({
             "code": r["code"], "name": r["name"], "market": r["market"],
             "close": r["close"], "change_pct": r2(r["change_pct"]),
-            "marcap": r.get("marcap"), "vol_surge": r2(r["vol_surge"]),
+            "marcap": r.get("marcap"), "amount_pct": amount_pct(r),
+            "vol_surge": r2(r["vol_surge"]),
             "amount": round(r["amount"]) if math.isfinite(r["amount"]) else None,
             "amount20": round(r["amount20"]) if math.isfinite(r["amount20"]) else None,
             "turnover": round(r["turnover"], 6) if r.get("turnover") else None,

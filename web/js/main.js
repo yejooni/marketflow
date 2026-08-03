@@ -67,6 +67,7 @@ function render(rows) {
       el('td', { class: 'num ' + dirClass(r.change_pct) }, pct(r.change_pct)),
       el('td', { class: 'num' }, eok(r.marcap)),
       el('td', { class: 'num' }, eok(r.amount)),
+      el('td', { class: 'num' }, r.amount_pct != null ? r.amount_pct.toFixed(2) + '%' : '–'),
       el('td', { class: 'num' }, r.at_high ? el('span', { class: 'up' }, '돌파') : pct(r.gap_pct, 2, false)),
       el('td', {}, probCell(r.prob)),
       // 기간수익률·상대강도·대금증가·시총대비 live on the stock page instead; they
