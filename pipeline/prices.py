@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
@@ -33,6 +34,9 @@ COLUMNS = ["date", "open", "high", "low", "close", "volume"]
 BREAKER_MIN_SAMPLE = 200
 BREAKER_FAILURE_RATE = 0.35
 
+# ", ]" left behind when the trailing field of an old row is empty.
+EMPTY_TRAILING = re.compile(r",\s*\]")
+
 
 def _session() -> requests.Session:
     s = requests.Session()
@@ -50,8 +54,13 @@ def _parse(text: str) -> pd.DataFrame | None:
     text = text.strip()
     if not text or "[" not in text:
         return None
+    # Rows older than the foreign-ownership series carry an empty trailing
+    # field -- ["19900103", 44000, 45000, 43200, 44800, 26240, ] -- which is not
+    # valid JSON. Dropping the dangling comma is what makes pre-2000 history
+    # parseable at all; without it those stocks silently returned nothing.
+    text = EMPTY_TRAILING.sub("]", text.replace("'", '"'))
     try:
-        rows = json.loads(text.replace("'", '"'))
+        rows = json.loads(text)
     except json.JSONDecodeError:
         return None
     if not rows or len(rows) < 2:
@@ -68,8 +77,16 @@ def _parse(text: str) -> pd.DataFrame | None:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     df = df.dropna(subset=["open", "high", "low", "close"])
 
-    # Suspended sessions come back as zero-price rows; they are not real candles.
-    df = df[df["close"] > 0]
+    # Naver pads non-trading days with open=high=low=0 but carries the previous
+    # close, so testing close alone lets those rows through as candles spanning
+    # zero. That wrecked the price scale (series minimum 0) and, because the low
+    # was no longer positive, silently disabled the log axis. Every price must
+    # be positive for the row to be a real session.
+    df = df[(df[["open", "high", "low", "close"]] > 0).all(axis=1)]
+    if df.empty:
+        return None
+
+    df = _drop_unadjusted_prefix(df)
     if df.empty:
         return None
 
@@ -81,6 +98,31 @@ def _parse(text: str) -> pd.DataFrame | None:
     ) / 4.0
 
     return df.sort_values("date").reset_index(drop=True)
+
+
+def _drop_unadjusted_prefix(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep only the tail of the series that shares one price basis.
+
+    Naver's back-adjustment does not reach the whole archive. 삼성전자 closes at
+    43,500 on 1990-02-28 and 423 the next session -- a raw 100:1 step with no
+    adjustment -- and about one in six stocks with pre-2000 data has a similar
+    cliff. Splits from 2018 and 2021 *are* adjusted correctly, so the problem is
+    confined to old history.
+
+    Korean price limits cap a session at ±30% today and were tighter before
+    2015, so a close-to-close step outside -32%/+35% cannot be a price move; it
+    is an unadjusted corporate action. The band sits just outside the limit so a
+    genuine 하한가 (0.70) or 상한가 (1.30) is never mistaken for one. Everything
+    before the most recent such step is on a different price basis and is
+    discarded.
+    """
+    if len(df) < 2:
+        return df
+    ratio = df["close"].to_numpy()[1:] / df["close"].to_numpy()[:-1]
+    breaks = np.nonzero((ratio <= 0.68) | (ratio >= 1.35))[0]
+    if breaks.size == 0:
+        return df
+    return df.iloc[breaks[-1] + 1:].reset_index(drop=True)
 
 
 def fetch_one(code: str, start: str, end: str, session: requests.Session) -> pd.DataFrame | None:
@@ -108,7 +150,7 @@ def fetch_all(codes: list[str], end_date: datetime | None = None) -> dict[str, p
     """Fetch daily candles for every code. Returns {code: DataFrame}."""
     end_date = end_date or datetime.now()
     end = end_date.strftime("%Y%m%d")
-    start = (end_date - timedelta(days=config.FETCH_CALENDAR_DAYS)).strftime("%Y%m%d")
+    start = config.HISTORY_START
 
     out: dict[str, pd.DataFrame] = {}
     failures: list[str] = []
@@ -163,7 +205,7 @@ def fetch_indices(end_date: datetime | None = None) -> dict[str, pd.DataFrame]:
     import FinanceDataReader as fdr
 
     end_date = end_date or datetime.now()
-    start = (end_date - timedelta(days=config.FETCH_CALENDAR_DAYS)).strftime("%Y-%m-%d")
+    start = (end_date - timedelta(days=500)).strftime("%Y-%m-%d")
     out = {}
     for key, sym in (("KOSPI", "KS11"), ("KOSDAQ", "KQ11")):
         try:

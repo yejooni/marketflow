@@ -123,13 +123,15 @@ export class KiwoomChart {
     this._mq?.removeEventListener?.('change', this._onScheme);
   }
 
-  setData(d) {
+  setData(d, bars) {
     this.d = d;
     this.n = d.c.length;
     this.ma = {};
     for (const m of MA_SET) this.ma[m.n] = sma(d.c, m.n);
+    this.hover = null;
+    this.pointer = null;
     this.view = { a: 0, b: this.n };
-    this.setRange(this.opts.initialBars || this.n);
+    this.setRange(bars || this.opts.initialBars || this.n);
   }
 
   /** Show the most recent `bars` sessions. */
@@ -216,13 +218,26 @@ export class KiwoomChart {
       }
     }
     if (!isFinite(lo) || !isFinite(hi)) { lo = 0; hi = 1; }
-    const pad = (hi - lo) * 0.06 || hi * 0.05 || 1;
-    lo -= pad; hi += pad;
-    if (lo < 0) lo = 0;
 
-    const priceY = (p) => L.priceB - ((p - lo) / (hi - lo)) * (L.priceB - L.priceT);
+    // Log scale keeps a decades-long series readable: on a linear axis a stock
+    // that rose 40x flattens its first 30 years into a straight line.
+    const log = this.opts.log && lo > 0;
+    if (log) {
+      const k = Math.pow(hi / lo, 0.05) || 1;
+      lo /= k; hi *= k;
+    } else {
+      const pad = (hi - lo) * 0.06 || hi * 0.05 || 1;
+      lo -= pad; hi += pad;
+      if (lo < 0) lo = 0;
+    }
+
+    const t = log ? Math.log : (x) => x;
+    const tLo = t(Math.max(lo, 1e-9));
+    const tHi = t(Math.max(hi, 1e-9));
+    const priceY = (p) => L.priceB
+      - ((t(Math.max(p, 1e-9)) - tLo) / (tHi - tLo || 1)) * (L.priceB - L.priceT);
     const volY = (v) => L.volB - (vhi > 0 ? (v / vhi) * (L.volB - L.volT) : 0);
-    return { lo, hi, vhi, priceY, volY };
+    return { lo, hi, vhi, priceY, volY, log };
   }
 
   /* ---------- interaction ---------- */
@@ -355,7 +370,10 @@ export class KiwoomChart {
         .join('');
     }
 
-    this.tip.innerHTML = `<div class="d">${fmtDateFull(d.d[i])}</div><table>${rows}</table>`;
+    const when = this.opts.weekly
+      ? `${fmtDate(d.d[i])} 주 (주봉)`
+      : fmtDateFull(d.d[i]);
+    this.tip.innerHTML = `<div class="d">${when}</div><table>${rows}</table>`;
     this.tip.style.display = 'block';
     this.placeTip(this.pointer);
   }
@@ -374,7 +392,33 @@ export class KiwoomChart {
     this.tip.style.top = y + 'px';
   }
 
+  /** Gridlines and date labels step by month on short views and by year once
+   *  the window spans several years, where monthly marks would be a blur. */
+  byYear() {
+    const { a, b } = this.view;
+    const years = (+this.d.d[b - 1].slice(0, 4)) - (+this.d.d[a].slice(0, 4));
+    return years >= 3;
+  }
+
+  isBoundary(i, byYear) {
+    if (i <= 0) return false;
+    const cur = this.d.d[i], prev = this.d.d[i - 1];
+    return byYear ? cur.slice(0, 4) !== prev.slice(0, 4)
+                  : cur.slice(4, 6) !== prev.slice(4, 6);
+  }
+
   priceTicks(S) {
+    if (S.log) {
+      // 1-2-5 decade ticks; even spacing in price would bunch up at the top.
+      const out = [];
+      for (let e = Math.floor(Math.log10(S.lo)); e <= Math.ceil(Math.log10(S.hi)); e++) {
+        for (const m of [1, 2, 5]) {
+          const v = m * Math.pow(10, e);
+          if (v >= S.lo && v <= S.hi) out.push(v);
+        }
+      }
+      return out;
+    }
     const span = S.hi - S.lo;
     const step = niceStep(span / 6);
     const out = [];
@@ -390,9 +434,9 @@ export class KiwoomChart {
       const y = Math.round(S.priceY(v)) + 0.5;
       c.moveTo(L.plotL, y); c.lineTo(L.plotR, y);
     }
-    // month boundaries as vertical guides
+    const byYear = this.byYear();
     for (let i = this.view.a + 1; i < this.view.b; i++) {
-      if (this.d.d[i].slice(4, 6) !== this.d.d[i - 1].slice(4, 6)) {
+      if (this.isBoundary(i, byYear)) {
         const x = Math.round(this.xOf(i, L)) + 0.5;
         c.moveTo(x, L.priceT); c.lineTo(x, L.priceB);
         c.moveTo(x, L.volT); c.lineTo(x, L.volB);
@@ -502,16 +546,16 @@ export class KiwoomChart {
     // date axis: label the first session of each month
     c.textAlign = 'center';
     c.textBaseline = 'top';
+    const byYear = this.byYear();
     let last = -999;
     for (let i = this.view.a; i < this.view.b; i++) {
-      const isFirst = i === this.view.a
-        || this.d.d[i].slice(4, 6) !== this.d.d[i - 1].slice(4, 6);
-      if (!isFirst) continue;
+      if (i !== this.view.a && !this.isBoundary(i, byYear)) continue;
       const x = this.xOf(i, L);
       if (x - last < 44) continue;
       last = x;
       const s = this.d.d[i];
-      const label = s.slice(4, 6) === '01' ? s.slice(0, 4) : `${+s.slice(4, 6)}월`;
+      const label = byYear || s.slice(4, 6) === '01'
+        ? s.slice(0, 4) : `${+s.slice(4, 6)}월`;
       c.fillText(label, x, L.volB + 6);
     }
 
@@ -540,9 +584,10 @@ export class KiwoomChart {
     const prev = i > 0 ? this.d.c[i - 1] : o;
     const chg = prev ? (cl / prev - 1) * 100 : 0;
 
+    const stamp = (this.opts.weekly ? '주봉 ' : '') + fmtDate(this.d.d[i]);
     c.fillStyle = col.ink;
-    c.fillText(fmtDate(this.d.d[i]), x, y);
-    x += c.measureText(fmtDate(this.d.d[i])).width + 12;
+    c.fillText(stamp, x, y);
+    x += c.measureText(stamp).width + 12;
 
     const parts = [['시', o], ['고', h], ['저', l], ['종', cl]];
     for (const [k, v] of parts) {

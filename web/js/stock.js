@@ -15,8 +15,15 @@ const LEVEL_COLORS = {
   '1M': '--ma5', '3M': '--ma20', '6M': '--ma60', '12M': '--ma120',
 };
 
+// [label, timeframe, bars]. Anything past a year switches to weekly candles:
+// at chart width a multi-year daily series is a fraction of a pixel per candle,
+// which is why an HTS shows 주봉 for long ranges too.
 const RANGES = [
-  ['3개월', 60], ['6개월', 120], ['1년', 9999],
+  ['3개월', 'day', 60],
+  ['6개월', 'day', 120],
+  ['1년', 'day', 9999],
+  ['5년', 'week', 260],
+  ['전체', 'week', 99999],
 ];
 
 let chart = null;
@@ -58,17 +65,53 @@ function buildChart(d) {
   });
 
   const box = document.getElementById('range-btns');
-  RANGES.forEach(([label, bars], i) => {
+  let timeframe = 'day';
+  RANGES.forEach(([label, tf, bars], i) => {
+    // A weekly-only range is pointless for a stock without that much history.
+    if (tf === 'week' && (d.weekly?.c?.length ?? 0) < 60) return;
     const b = el('button', {
       class: i === 1 ? 'on' : '',
       onclick: () => {
         box.querySelectorAll('button').forEach((x) => x.classList.remove('on'));
         b.classList.add('on');
-        chart.setRange(bars);
+        if (tf !== timeframe) {
+          timeframe = tf;
+          chart.opts.weekly = tf === 'week';
+          chart.setData(tf === 'week' ? d.weekly : d.ohlcv, bars);
+        } else {
+          chart.setRange(bars);
+        }
+        autoLog();
       },
     }, label);
     box.appendChild(b);
   });
+
+  // Turn the log axis on by itself once the visible range covers a big multiple
+  // -- that is exactly when a linear axis stops being readable. Once the user
+  // touches the button their choice sticks.
+  const logBtn = document.getElementById('t-log');
+  let logManual = false;
+  function autoLog() {
+    if (logManual) return;
+    const { a, b } = chart.view;
+    let lo = Infinity, hi = 0;
+    for (let i = a; i < b; i++) {
+      if (chart.d.l[i] > 0 && chart.d.l[i] < lo) lo = chart.d.l[i];
+      if (chart.d.h[i] > hi) hi = chart.d.h[i];
+    }
+    const on = isFinite(lo) && lo > 0 && hi / lo >= 5;
+    chart.opts.log = on;
+    logBtn.classList.toggle('on', on);
+    chart.draw();
+  }
+  logBtn.addEventListener('click', () => {
+    logManual = true;
+    chart.opts.log = !chart.opts.log;
+    logBtn.classList.toggle('on', chart.opts.log);
+    chart.draw();
+  });
+  autoLog();
 
   const maBtn = document.getElementById('t-ma');
   maBtn.addEventListener('click', () => {
@@ -138,7 +181,7 @@ function periodCards(d) {
       el('div', { class: 'big ' + (hasProb && probPct >= 20 ? 'up' : '') },
         hasProb ? probPct.toFixed(1) + '%' : '–'),
       el('div', { class: 'note', style: 'margin-bottom:10px' },
-        hasProb ? `오늘 장중 돌파 빈도 · 표본 ${nf(p.prob_n)}일`
+        hasProb ? `다음 거래일 장중 돌파 확률 · 표본 ${nf(p.prob_n)}일`
                 : '표본이 부족해 확률을 내지 않습니다'),
 
       el('dl', { class: 'kv' },

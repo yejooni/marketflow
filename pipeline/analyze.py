@@ -123,7 +123,11 @@ def analyze_stock(
     if df is None or len(df) < config.MIN_HISTORY:
         return None
 
-    df = prepare(df)
+    # Keep the full series for charting, but analyse only the recent window.
+    # Feeding decades of history to the probability model would change the
+    # sample it was validated on and mix in regimes with no bearing on today.
+    full = df
+    df = prepare(df.tail(config.ANALYSIS_BARS))
     last = df.iloc[-1]
     close = float(last["close"])
     if close <= 0:
@@ -209,9 +213,11 @@ def analyze_stock(
         "ma_aligned": aligned,
         "uptrend": uptrend_now,
         "liquid": bool(amount20 >= config.MIN_AVG_AMOUNT and close >= config.MIN_PRICE),
-        "bars": int(len(df)),
+        "bars": int(len(full)),
+        "first_date": full["date"].iloc[0].strftime("%Y-%m-%d"),
         "periods": periods,
         "_df": df,
+        "_full": full,
     }
 
 

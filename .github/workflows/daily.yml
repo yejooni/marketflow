@@ -8,14 +8,14 @@ name: daily
 
 on:
   schedule:
-    # 05:17 KST = 20:17 UTC the previous day. Sun-Thu UTC == Mon-Fri KST,
-    # which covers every Korean trading day. At 05:17 KST on day D the runner's
-    # UTC date is still D-1, which is exactly the last closed Korean session,
-    # so the fetch window needs no timezone juggling.
+    # 21:00 KST = 12:00 UTC the SAME day, so Mon-Fri UTC maps to Mon-Fri KST.
+    # The market closed at 15:30 and the after-hours session at 18:00, so the
+    # day's candle is final well before this runs -- the site therefore carries
+    # the CURRENT session's close, not the previous day's.
     #
     # Offset off the hour on purpose: GitHub queues scheduled runs under load
     # and :00 is the most contended minute.
-    - cron: '17 20 * * 0-4'
+    - cron: '13 12 * * 1-5'
   workflow_dispatch:
   push:
     branches: [master]

@@ -49,6 +49,32 @@ def _write(path, payload):
         json.dump(_clean(payload), f, ensure_ascii=False, separators=(",", ":"))
 
 
+def _weekly(df):
+    """Aggregate the full daily series into weekly candles.
+
+    A 36-year daily series is ~9,400 candles; at typical chart width that is a
+    tenth of a pixel each, so it cannot be drawn as candles at all. Weekly is
+    what an HTS shows for long ranges and costs about a fifth of the payload.
+    """
+    tmp = df.copy()
+    tmp["last_day"] = tmp["date"]
+    w = tmp.set_index("date").resample(config.WEEKLY_RULE).agg({
+        "last_day": "last", "open": "first", "high": "max", "low": "min",
+        "close": "last", "volume": "sum",
+    }).dropna(subset=["close"])
+    # Label each bar with the last session it actually contains, not the bin's
+    # period end -- otherwise the current, partial week is stamped with a Friday
+    # that has not happened yet.
+    return {
+        "d": [d.strftime("%Y%m%d") for d in w["last_day"]],
+        "o": [int(x) for x in w["open"]],
+        "h": [int(x) for x in w["high"]],
+        "l": [int(x) for x in w["low"]],
+        "c": [int(x) for x in w["close"]],
+        "v": [int(x) for x in w["volume"]],
+    }
+
+
 def _period_summary(p: dict) -> dict:
     keys = (
         "high", "low", "high_date", "days_since_high", "gap_pct", "at_high",
@@ -74,7 +100,7 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -
 
     # ---- per-stock detail -------------------------------------------------
     for r in results:
-        df = r["_df"].tail(config.SERVE_TRADING_DAYS)
+        df = r["_full"].tail(config.SERVE_TRADING_DAYS)
         payload = {
             "code": r["code"],
             "name": r["name"],
@@ -94,6 +120,7 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -
             "uptrend": r["uptrend"],
             "liquid": r["liquid"],
             "bars": r["bars"],
+            "first_date": r["first_date"],
             "marcap": r.get("marcap"),
             "shares": r.get("shares"),
             "ohlcv": {
@@ -104,6 +131,7 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str) -
                 "c": [int(x) for x in df["close"]],
                 "v": [int(x) for x in df["volume"]],
             },
+            "weekly": _weekly(r["_full"]),
             "periods": {k: _period_summary(v) for k, v in r["periods"].items()},
         }
         _write(config.STOCK_DIR / f"{r['code']}.json", payload)

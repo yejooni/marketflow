@@ -10,12 +10,25 @@ STOCK_DIR = DATA_DIR / "stocks"
 
 # --- Collection -------------------------------------------------------------
 
-# We serve one year of candles, but analysis needs a little more history than
-# it displays: the 12-month high must look back a full 240 trading days *and*
-# MA120 has to be defined at the left edge of that window. 500 calendar days
-# (~340 trading days) covers both with room for holidays.
-FETCH_CALENDAR_DAYS = 500
-SERVE_TRADING_DAYS = 245  # ~1 year of candles sent to the browser
+# Naver returns a stock's entire range in one request, so pulling everything
+# costs the same number of requests as pulling a year -- measured 3.9 min for
+# the full universe vs 1.6 min for a year. There is nothing to cache or
+# accumulate: a stateless full refetch also keeps splits and rights issues
+# correct, which an append-only store would silently corrupt.
+HISTORY_START = "19900101"
+
+SERVE_TRADING_DAYS = 245  # ~1 year of daily candles sent to the browser
+
+# Analysis deliberately ignores the deep history. The 12-month high needs 240
+# sessions and MA120 needs warmup before that; 340 covers both. Widening this
+# would silently change the sample the probability model was validated on.
+ANALYSIS_BARS = 340
+
+# Weekly candles carry the long view instead of daily ones. At 1000px a 36-year
+# daily series is 0.1px per candle -- unrenderable -- which is why every HTS
+# switches to 주봉 for long ranges. Weekly keeps the whole history at ~1/5 the
+# payload.
+WEEKLY_RULE = "W-FRI"
 
 MAX_WORKERS = 6  # gentler than the 8 that ran into throttling from CI runners
 # Per attempt. Kept short deliberately: with thousands of codes a long timeout

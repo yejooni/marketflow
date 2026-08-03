@@ -91,17 +91,39 @@ Deployment.
   memberships; 8 carries 97.8% and drops the tail where a stock belongs to so
   many themes that none of them describes it. Tables render the first two
   (`themeChips(themes, 2)`); the detail page renders all.
-- **거래대금 is ESTIMATED**: `volume x (O+H+L+C)/4`. No source publishes it
-  historically. Validated at **0.70% median error** vs KRX actuals (close-only
-  was 1.71%). Always label it 추정 in the UI.
+- **거래대금 is ESTIMATED**: `volume x (O+H+L+C)/4`. No *free* source publishes
+  it historically. Validated at **0.70% median error** vs KRX actuals
+  (close-only was 1.71%). Always label it 추정 in the UI.
+  - **pykrx does not solve this.** `get_market_ohlcv_by_date` works without
+    credentials but falls back to a source with no 거래대금 column (시가·고가·
+    저가·종가·거래량·등락률 only), and the KRX-backed calls print
+    `KRX 로그인 실패` and return nothing. Real 거래대금 needs a data.krx.co.kr
+    account exported as `KRX_ID`/`KRX_PW`. If those ever exist as repo secrets,
+    a one-off backfill is worthwhile since history never changes.
 
-### The daily job refetches everything — keep it that way
-It pulls ~500 calendar days per stock every run, not one day. Reasons:
-the 12-month high needs 240 sessions plus MA120 warmup anyway; **one request
-returns any range**, so incremental fetching saves zero requests; and a full
-rebuild absorbs splits/rights issues automatically, whereas appending one day at
-a time would silently corrupt a series after a 액면분할. Runners are ephemeral
-and data is never committed, so there is nothing to append to.
+### The daily job refetches ALL history — keep it that way
+It pulls every session back to 1990 per stock, every run. **One request returns
+any range**, so a full pull costs the same ~2,530 requests as a one-year pull —
+measured 3.9 min vs 1.6 min. Incremental accumulation would therefore buy
+nothing while adding a cache to corrupt, and a stateless refetch keeps splits
+correct: Naver back-adjusts, so an append-only store would freeze pre-split
+prices and quietly break the series at every 액면분할.
+
+### Deep history is dirty — two filters keep it usable
+Both live in `prices._parse` and matter more than they look:
+
+1. **Non-trading days are padded with `open=high=low=0` and a carried close.**
+   Testing `close > 0` alone let them through as candles spanning zero, which
+   put the series minimum at 0 and — because `lo > 0` was then false — silently
+   disabled the log axis. All four prices must be positive.
+2. **Naver's back-adjustment does not reach the whole archive.**
+   삼성전자 closes 43,500 then 423 the next session (raw 100:1, unadjusted);
+   ~1 in 6 stocks with pre-2000 data has such a cliff, while the 2018 and 2021
+   splits *are* adjusted. `_drop_unadjusted_prefix` keeps only the tail sharing
+   one price basis, cutting at any close-to-close step outside -32%/+35% —
+   impossible under Korean price limits (±30%), so such a step is always a
+   corporate action, never a price. Verified: 0/298 sampled stocks retain an
+   impossible move, down from 5/149.
 
 ## Probability model
 
@@ -163,10 +185,11 @@ within 20%.
 
 ## Deployment
 
-`.github/workflows/daily.yml` — cron `17 20 * * 0-4` UTC = **05:17 KST Mon–Fri**.
-At 05:17 KST on day D the runner's UTC date is D-1, exactly the last closed
-Korean session, so no timezone juggling is needed. Measured end-to-end: **~2.5
-min** (collect+analyse 110s).
+`.github/workflows/daily.yml` — cron `13 12 * * 1-5` UTC = **21:00 KST Mon–Fri**,
+after the close. UTC and KST land on the same calendar day at that hour, so the
+site carries the **current** session's close and the breakout estimate refers to
+the **next** trading day. Say 다음 거래일 in the UI, never 오늘 — that wording was
+correct only under the old pre-open schedule.
 
 - Output ships as a **Pages artifact, never committed** → repo stays ~0.12MB.
 - Pages source must be **"GitHub Actions"** in repo settings. `configure-pages`
@@ -205,6 +228,14 @@ min** (collect+analyse 110s).
   Revalidate with the `dataviz` skill's `validate_palette.js` if changed.
 - Probability shows `–`, never `0.0%`, when the sample is too small — 0% would
   read as "cannot break out".
+- **Daily candles up to 1 year, weekly beyond.** A 36-year daily series is
+  ~9,400 candles — a tenth of a pixel each — so it cannot be drawn; every HTS
+  switches to 주봉 for the same reason. `build_site._weekly` labels each bar with
+  the last session it contains, not the resample bin edge, or the current
+  partial week gets stamped with a Friday that has not happened yet.
+- **Log axis auto-engages** once the visible range spans ≥5x, and the user's
+  manual toggle wins after that. Without it a stock that rose 40x renders as a
+  flat line then a spike.
 
 ## Verify after changes
 
