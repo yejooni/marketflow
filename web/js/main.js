@@ -69,10 +69,8 @@ function render(rows) {
       el('td', { class: 'num' }, eok(r.amount)),
       el('td', { class: 'num' }, r.at_high ? el('span', { class: 'up' }, '돌파') : pct(r.gap_pct, 2, false)),
       el('td', {}, probCell(r.prob)),
-      el('td', { class: 'num ' + dirClass(r.ret_pct) }, pct(r.ret_pct, 1)),
-      el('td', { class: 'num ' + dirClass(r.rs) }, pct(r.rs, 1)),
-      el('td', { class: 'num' }, r.vol_surge ? r.vol_surge.toFixed(2) + '×' : '–'),
-      el('td', { class: 'num' }, r.turnover != null ? (r.turnover * 100).toFixed(2) + '%' : '–'),
+      // 기간수익률·상대강도·대금증가·시총대비 live on the stock page instead; they
+      // still feed the leader score, they are just not worth a column here.
       el('td', {},
         el('div', { class: 'scorecell' },
           el('div', { class: 'track' },
