@@ -109,6 +109,16 @@ Deployment.
     Verify a key with `python -m pipeline.krx --check [YYYYMMDD]`, which prints
     the actual field names — the parser accepts several spellings so a rename
     degrades to the estimate rather than crashing.
+  - **An issued key is not enough.** KRX's own 이용방법 has four steps, and the
+    key is only step 1. Step 3 is **API 이용신청 per service, with admin
+    approval** (the button sits on each API's detail page). Until that is
+    approved every call returns **401** and the run falls back — confirmed once
+    already, with 이용현황 listing zero applications while the key was valid.
+    If turnover is unexpectedly estimated, check entitlements before the key.
+  - Published spec: `ISU_CD`, `ACC_TRDVAL` (거래대금), plus `MKTCAP` and
+    `LIST_SHRS`. Data starts **2010-01-04**; earlier sessions keep the estimate.
+  - `meta.krx_diag` carries statuses and field names (never key material) so a
+    fallback is diagnosable from the published site without CI log access.
 
 ### The daily job refetches ALL history — keep it that way
 It pulls every session back to 1990 per stock, every run. **One request returns

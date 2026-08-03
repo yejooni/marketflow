@@ -35,10 +35,16 @@ ENDPOINTS = {"KOSPI": "stk_bydd_trd", "KOSDAQ": "ksq_bydd_trd"}
 
 ENV_KEY = "KRX_AUTH_KEY"
 
-# The API labels columns in English; accept the likely spellings rather than
-# hard-coding one, so a rename degrades to the estimate instead of crashing.
+# Per the published 개발 명세서 for stk_bydd_trd the columns are BAS_DD, ISU_CD,
+# ISU_NM, MKT_NM, SECT_TP_NM, TDD_CLSPRC, CMPPREVDD_PRC, FLUC_RT, TDD_OPNPRC,
+# TDD_HGPRC, TDD_LWPRC, ACC_TRDVOL, ACC_TRDVAL, MKTCAP, LIST_SHRS. Alternatives
+# are still accepted so a rename degrades to the estimate instead of crashing.
 CODE_FIELDS = ("ISU_SRT_CD", "ISU_CD", "SRT_CD")
 VALUE_FIELDS = ("ACC_TRDVAL", "TRDVAL", "ACC_TRD_VAL")
+
+# This API only publishes from 2010-01-04, so older sessions simply return
+# nothing and keep their estimate.
+EARLIEST = "20100104"
 
 MAX_WORKERS = 4
 TIMEOUT = 20
@@ -57,6 +63,17 @@ def _session() -> requests.Session:
         "Accept": "application/json",
     })
     return s
+
+
+def _norm_code(code: str) -> str:
+    """KRX sometimes identifies an issue by ISIN; our codes are the short form.
+
+    KR7005930003 -> 005930. Anything already six characters passes through.
+    """
+    code = str(code).strip()
+    if len(code) == 12 and code[:2].isalpha():
+        return code[3:9]
+    return code
 
 
 def _pick(row: dict, names: tuple[str, ...]) -> str | None:
@@ -126,6 +143,7 @@ def fetch_amounts(days: list[str]) -> dict[str, dict[str, float]]:
         return {}
 
     session = _session()
+    days = [d for d in days if d >= EARLIEST]
     jobs = [(m, d) for d in days for m in ENDPOINTS]
     out: dict[str, dict[str, float]] = {}
     t0 = time.time()
@@ -146,7 +164,7 @@ def fetch_amounts(days: list[str]) -> dict[str, dict[str, float]]:
                     if not code or val is None:
                         continue
                     try:
-                        bucket[str(code).strip()] = float(str(val).replace(",", ""))
+                        bucket[_norm_code(code)] = float(str(val).replace(",", ""))
                     except ValueError:
                         continue
     except PermissionError as e:
