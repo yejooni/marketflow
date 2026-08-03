@@ -55,10 +55,12 @@ function render(rows) {
   rows.forEach((r, i) => {
     const tr = el('tr', { onclick: () => (location.href = `stock.html?code=${r.code}`) },
       el('td', { class: 'l rank' }, String(i + 1)),
+      // No 신고가 badge here: the 신고가까지 column already prints 돌파 in red for
+      // exactly these rows, and a badge on a single row widens the 종목 column
+      // for the whole table, pushing 주도주점수 out of view.
       el('td', { class: 'l' },
         el('span', { class: 'nm' }, r.name),
         el('span', { class: 'cd' }, r.code),
-        r.at_high ? el('span', { class: 'badge hi', style: 'margin-left:6px' }, '신고가') : null,
       ),
       el('td', { class: 'l' }, themeChips(r.themes)),
       el('td', { class: 'num' }, nf(r.close)),
