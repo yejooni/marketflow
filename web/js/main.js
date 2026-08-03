@@ -102,6 +102,23 @@ function buildTabs() {
   }
 }
 
+/** Surface anything that will quietly degrade the data if left alone. */
+function buildNotices() {
+  const box = document.getElementById('notices');
+  box.innerHTML = '';
+  const left = meta.krx_key_days_left;
+
+  if (meta.amount_source === 'krx' && left != null && left <= 30) {
+    box.appendChild(el('div', { class: 'notice' },
+      el('strong', {}, `KRX 인증키 만료 ${left}일 전`),
+      el('span', {}, `(${meta.krx_key_expires}) — 갱신하지 않으면 거래대금이 추정치로 돌아갑니다.`)));
+  } else if (meta.amount_source !== 'krx' && left != null && left <= 0) {
+    box.appendChild(el('div', { class: 'notice' },
+      el('strong', {}, 'KRX 인증키 만료됨'),
+      el('span', {}, `(${meta.krx_key_expires}) — 거래대금이 추정치로 표시되고 있습니다.`)));
+  }
+}
+
 function buildStats() {
   const s = document.getElementById('stats');
   const total = Object.values(meta.candidates || {}).reduce((a, b) => a + b, 0);
@@ -136,6 +153,7 @@ function buildStats() {
     + `상승 추세이면서 신고가가 ${meta.reach_pct}% 이내인 종목`;
 
   period = (meta.periods || ['1M'])[0];
+  buildNotices();
   buildStats();
   buildTabs();
   refresh();

@@ -1,6 +1,7 @@
 """Shared configuration for the GodFlow pipeline."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,6 +54,14 @@ MIN_AVG_AMOUNT = 500_000_000  # 5억원, 20-day average turnover
 # the served daily window, so both the rankings and the chart tooltip show real
 # figures. Each session costs two calls (KOSPI + KOSDAQ).
 KRX_DAYS = 250
+
+# The KRX key expires a year after issue and the API gives no way to ask when.
+# Recording it here lets the site show the remaining days and lets CI open an
+# issue before it lapses -- otherwise the first sign would be turnover quietly
+# reverting to estimates. Override with a KRX_KEY_EXPIRES repo variable on
+# renewal so this needs no code change.
+KRX_KEY_EXPIRES = os.getenv("KRX_KEY_EXPIRES", "2027-08-02")
+KRX_KEY_WARN_DAYS = 30
 MIN_PRICE = 1_000
 
 # --- Analysis ---------------------------------------------------------------

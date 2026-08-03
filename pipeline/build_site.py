@@ -49,6 +49,16 @@ def _write(path, payload):
         json.dump(_clean(payload), f, ensure_ascii=False, separators=(",", ":"))
 
 
+def _days_until(date_str: str | None) -> int | None:
+    if not date_str:
+        return None
+    try:
+        end = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+    return (end - datetime.now(KST).date()).days
+
+
 def _weekly(df):
     """Aggregate the full daily series into weekly candles.
 
@@ -247,6 +257,8 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
         "reach_pct": config.REACH_PCT,
         # "krx" once real turnover is available; the UI drops the 추정 label.
         "amount_source": amount_source,
+        "krx_key_expires": config.KRX_KEY_EXPIRES,
+        "krx_key_days_left": _days_until(config.KRX_KEY_EXPIRES),
         "advancing": advancing,
         "declining": len(results) - advancing,
     }

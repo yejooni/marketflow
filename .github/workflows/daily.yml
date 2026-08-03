@@ -29,6 +29,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write   # only to raise the KRX key-expiry reminder
 
 concurrency:
   group: pages
@@ -63,6 +64,30 @@ jobs:
         run: |
           du -sh web/data
           echo "stock files: $(ls web/data/stocks | wc -l)"
+          python -c "import json;m=json.load(open('web/data/meta.json'));print('거래대금 source:',m['amount_source'],'| KRX key days left:',m.get('krx_key_days_left'))"
+
+      # The API cannot be asked when the key expires, and an expired key fails
+      # softly -- turnover just reverts to estimates -- so the lapse would go
+      # unnoticed. Raise an issue while there is still time to renew.
+      - name: Remind about KRX key expiry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LEFT=$(python -c "import json;print(json.load(open('web/data/meta.json')).get('krx_key_days_left') or 9999)")
+          echo "days left: $LEFT"
+          [ "$LEFT" -gt 30 ] && exit 0
+          TITLE="KRX 인증키 갱신 필요 (D-$LEFT)"
+          if gh issue list --state open --search "KRX 인증키 갱신 필요 in:title" \
+               --json title --jq '.[].title' | grep -q 'KRX 인증키 갱신'; then
+            echo "reminder already open"; exit 0
+          fi
+          gh issue create --title "$TITLE" --body \
+            "KRX OpenAPI 인증키가 곧 만료됩니다 (남은 기간 ${LEFT}일).
+          갱신하지 않으면 거래대금이 조용히 추정치로 되돌아갑니다.
+
+          1. https://openapi.krx.co.kr 에서 인증키 재발급
+          2. 저장소 Secret \`KRX_AUTH_KEY\` 갱신
+          3. 새 만료일을 저장소 Variable \`KRX_KEY_EXPIRES\` 에 \`YYYY-MM-DD\` 로 설정"
 
       # Pages pins Cache-Control: max-age=600 with no way to override it, so a
       # visitor can revalidate the HTML while still holding the previous JS.

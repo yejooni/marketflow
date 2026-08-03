@@ -124,10 +124,7 @@
   36년치를 일봉으로 그리면 캔들 하나가 화면에서 0.1픽셀이라 그릴 수가 없고,
   HTS가 장기 구간에서 주봉으로 바꾸는 이유도 같습니다.
   분석(신고가·확률·점수)은 언제나 최근 1년 구간만 사용합니다.</p>
-  <p><strong>거래대금은 추정치</strong>입니다. 일별 거래대금 원본이 공개되지 않아
-  <code>거래량 × (시+고+저+종)/4</code>로 재구성했으며, KRX 실제값 대비 중앙값 오차
-  0.70%(90분위 2.46%)로 검증했습니다. 유동성 필터·순위용으로는 충분하지만
-  정확한 금액은 아닙니다.</p>
+  <p id="amount-note"></p>
 
   <h2>한계</h2>
   <ul>
@@ -152,6 +149,23 @@
   loadJSON('data/meta.json').then((m) => {
     document.getElementById('sub').textContent =
       `${m.trade_date} 기준 · 분석 종목 ${m.universe.toLocaleString('ko-KR')}개`;
+
+    // The turnover caveat depends on whether a KRX key is actually in use, so
+    // it is written from the data rather than hard-coded in the page.
+    const left = m.krx_key_days_left;
+    document.getElementById('amount-note').innerHTML = m.amount_source === 'krx'
+      ? '<strong>거래대금은 KRX 실제값</strong>입니다. KRX 공식 OpenAPI'
+        + '(일별매매정보)에서 최근 250거래일을 받아옵니다. 그 이전 구간과 '
+        + 'API가 응답하지 않은 날은 <code>거래량 × (시+고+저+종)/4</code> 추정치로 '
+        + '대체하며, 이 추정은 실제값 대비 중앙값 오차 0.70%(90분위 2.46%)입니다.'
+        + (left != null
+            ? ` 인증키 만료일은 <strong>${m.krx_key_expires}</strong>(${left}일 남음)이며,`
+              + ' 만료되면 자동으로 추정치로 되돌아갑니다.'
+            : '')
+      : '<strong>거래대금은 추정치</strong>입니다. 일별 원본이 공개되지 않아 '
+        + '<code>거래량 × (시+고+저+종)/4</code>로 재구성했으며, KRX 실제값 대비 '
+        + '중앙값 오차 0.70%(90분위 2.46%)로 검증했습니다. 유동성 필터·순위용으로는 '
+        + '충분하지만 정확한 금액은 아닙니다.';
   }).catch(() => {});
 </script>
 </body>

@@ -251,6 +251,14 @@ tbody .chip { max-width: 86px; }
 .scorecell .track { width: 46px; height: 5px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
 .scorecell .fill { height: 100%; background: var(--accent); }
 
+.notice {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; margin: 0 0 14px; border-radius: 9px;
+  border: 1px solid var(--up); background: var(--up-soft);
+  color: var(--ink); font-size: 13px;
+}
+.notice strong { color: var(--up); }
+
 .empty { padding: 44px 20px; text-align: center; color: var(--muted); }
 .empty strong { display: block; color: var(--ink); font-size: 15px; margin-bottom: 6px; }
 
