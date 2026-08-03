@@ -20,7 +20,7 @@ from datetime import datetime, timezone, timedelta
 
 import numpy as np
 
-from . import config
+from . import config, krx
 
 KST = timezone(timedelta(hours=9))
 
@@ -259,6 +259,9 @@ def build(results: list[dict], themes: dict, theme_map: dict, trade_date: str,
         "amount_source": amount_source,
         "krx_key_expires": config.KRX_KEY_EXPIRES,
         "krx_key_days_left": _days_until(config.KRX_KEY_EXPIRES),
+        # Statuses and field names only, never key material -- lets a failed
+        # KRX run be diagnosed from the published site instead of CI logs.
+        "krx_diag": krx.DIAG or None,
         "advancing": advancing,
         "declining": len(results) - advancing,
     }

@@ -66,16 +66,37 @@ def _pick(row: dict, names: tuple[str, ...]) -> str | None:
     return None
 
 
+# Populated during a run and copied into meta.json. Statuses and field names
+# only -- never anything derived from the key itself. Without CI log access this
+# is the only way to see why a run fell back to estimates.
+DIAG: dict = {}
+
+
+def _note(key, value=None):
+    if value is None:
+        DIAG[key] = DIAG.get(key, 0) + 1
+    else:
+        DIAG.setdefault(key, value)
+
+
 def _fetch_day(session: requests.Session, market: str, day: str) -> list[dict]:
     url = f"{BASE}/{ENDPOINTS[market]}"
     for attempt in range(RETRIES):
         try:
             r = session.get(url, params={"basDd": day}, timeout=TIMEOUT)
+            _note(f"http_{r.status_code}")
             if r.status_code == 200:
                 body = r.json()
+                _note("top_keys", sorted(body)[:6])
                 for key in ("OutBlock_1", "output", "OutBlock1", "data"):
                     if isinstance(body.get(key), list):
-                        return body[key]
+                        rows = body[key]
+                        if rows:
+                            _note("row_fields", sorted(rows[0])[:24])
+                            _note("sample_code", str(_pick(rows[0], CODE_FIELDS)))
+                            _note("sample_value", str(_pick(rows[0], VALUE_FIELDS)))
+                        return rows
+                _note("no_known_block")
                 return []
             if r.status_code in (401, 403):
                 raise PermissionError(
@@ -98,6 +119,9 @@ def fetch_amounts(days: list[str]) -> dict[str, dict[str, float]]:
     Non-trading days simply come back empty. Any day we cannot retrieve is
     omitted, and the caller keeps its estimate for that day.
     """
+    DIAG.clear()
+    DIAG["enabled"] = enabled()
+    DIAG["sessions_requested"] = len(days)
     if not enabled():
         return {}
 
@@ -126,10 +150,13 @@ def fetch_amounts(days: list[str]) -> dict[str, dict[str, float]]:
                     except ValueError:
                         continue
     except PermissionError as e:
+        _note("rejected", str(e))
         print(f"  WARN: {e} Falling back to estimated 거래대금.", flush=True)
         return {}
 
     filled = sum(len(v) for v in out.values())
+    DIAG["sessions_ok"] = len(out)
+    DIAG["values"] = filled
     print(f"  KRX 거래대금: {len(out)}/{len(days)} sessions, {filled:,} values, "
           f"{time.time() - t0:.0f}s", flush=True)
     return out
