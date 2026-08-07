@@ -50,11 +50,21 @@ the full conda path above.
 ## Commands
 
 ```bash
-python -m pipeline.run                 # full run, ~3 min local
+python -m pipeline.run                 # full run, ~6 min local
 python -m pipeline.run --limit 300 --skip-themes   # fast dev loop
 python -m pipeline.backtest            # revalidate the probability model
-cd web && python -m http.server 8765   # local preview
+python -m pipeline.krx --check         # prove a KRX key works
+cd web && python -m http.server 8765   # local preview (run the pipeline first)
 ```
+
+`web/data/` is gitignored and starts empty on a fresh clone, so local preview
+needs a run first. **A `--limit` run leaves a partial dataset behind** that looks
+like a real one — if the site shows an implausibly small 분석 종목 count, that is
+why. Delete `web/data` or do a full run.
+
+`requirements.txt` lists `lxml` and `beautifulsoup4` even though nothing here
+imports them: FinanceDataReader imports bs4 at module load and fails without it.
+Verified by installing the file into a clean venv and removing them.
 Browser-cache the CSS aggressively — **hard-reload (ctrl+shift+r)** when checking
 style changes locally, or you will debug a stale stylesheet.
 
@@ -208,6 +218,11 @@ within 20%.
    State lives on the table element; `theme.js` clears it when rebuilding headers.
 7. **Never fetch per-member on theme pages.** Use `web/data/rows.json` (one
    compact row per stock) — a 148-member theme was firing 148 requests.
+8. **A table column sizes to its widest row, including conditional content.**
+   One row's 신고가 badge widened 종목 by 49px for all 31 rows and pushed the last
+   column off-screen. The badge was also redundant with the 신고가까지 cell. Names
+   are now capped at 132px for the same reason. When adding a column, check the
+   table with a row that has every optional element present.
 
 ## Deployment
 
@@ -216,6 +231,22 @@ after the close. UTC and KST land on the same calendar day at that hour, so the
 site carries the **current** session's close and the breakout estimate refers to
 the **next** trading day. Say 다음 거래일 in the UI, never 오늘 — that wording was
 correct only under the old pre-open schedule.
+
+- **Observed runs start ~23:30 KST, not 21:00.** GitHub defers scheduled
+  workflows under load; measured delay has been 2–3 hours, every run still
+  succeeding. Data is unaffected (the session closed hours earlier), so this is
+  a presentation issue only — never state a precise update hour in the UI, point
+  at `generated_at` instead. Moving the cron earlier would pull the landing time
+  in, but nothing before ~10:00 UTC (19:00 KST) is safe: the 시간외단일가 session
+  runs to 18:00 KST and its trades count toward the day's 거래량/거래대금.
+- **Do not push twice inside ~8 minutes.** `cancel-in-progress: true` means the
+  second push kills the first run, and a full run takes 6–7 minutes with KRX.
+  This has already caused a "why isn't it deploying" moment — the first change
+  was simply never built. Batch edits into one push, or wait for the run.
+- After a deploy, a browser holding the previous page keeps it for up to 10
+  minutes (`max-age=600`). That is the cache-busting working: old HTML pairs
+  with old JS and stays consistent instead of breaking. Ctrl+Shift+R to check
+  immediately.
 
 - Output ships as a **Pages artifact, never committed** → repo stays ~0.12MB.
 - Pages source must be **"GitHub Actions"** in repo settings. `configure-pages`
