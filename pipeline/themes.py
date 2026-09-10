@@ -1,4 +1,4 @@
-"""Theme membership scraped from Naver Finance's theme directory.
+"""Theme membership from Naver's mobile stock API.
 
 Naver groups stocks into ~266 curated themes. A stock usually belongs to
 several, and they are kept *most specific first* -- membership count is a good
@@ -10,6 +10,12 @@ Keeping only two covered just 62.5% of memberships; the current cap of eight
 covers 97.8% while dropping the tail where a stock belongs to so many themes
 that none of them characterises it. Tables still show the first two; the detail
 page shows all of them.
+
+Source note: the old scrape of `finance.naver.com/sise/theme.naver` broke in
+2026-09 when Naver rebuilt that page as a client-rendered React app with no
+theme links in the HTML. `m.stock.naver.com/api/stocks/theme` is the JSON the
+new page calls -- one request lists a page of themes, one lists a theme's
+members. No key, `euc-kr` no longer in the picture (it is UTF-8 JSON).
 """
 from __future__ import annotations
 
@@ -21,12 +27,13 @@ import requests
 
 from . import config
 
-LIST_URL = "https://finance.naver.com/sise/theme.naver?page={page}"
-DETAIL_URL = "https://finance.naver.com/sise/sise_group_detail.naver?type=theme&no={no}"
+LIST_URL = "https://m.stock.naver.com/api/stocks/theme?page={page}&pageSize={size}"
+DETAIL_URL = "https://m.stock.naver.com/api/stocks/theme/{no}?page={page}&pageSize={size}"
 
-THEME_LINK_RE = re.compile(r'type=theme&no=(\d+)"[^>]*>([^<]+)<')
-MEMBER_RE = re.compile(r'/item/main\.naver\?code=([0-9A-Z]{6})"[^>]*>([^<]+)<')
-PAGE_RE = re.compile(r"theme\.naver\?&?page=(\d+)")
+# Naver rejects pageSize above ~100 with a 400.
+PAGE_SIZE = 100
+
+CODE_RE = re.compile(r"^[0-9A-Z]{6}$")
 
 MAX_THEMES_PER_STOCK = 8
 
@@ -37,14 +44,13 @@ def _session() -> requests.Session:
     return s
 
 
-def _get(session: requests.Session, url: str) -> str | None:
+def _get_json(session: requests.Session, url: str):
     for attempt in range(config.RETRIES):
         try:
             r = session.get(url, timeout=config.REQUEST_TIMEOUT)
             if r.status_code == 200:
-                r.encoding = "euc-kr"
-                return r.text
-        except requests.RequestException:
+                return r.json()
+        except (requests.RequestException, ValueError):
             pass
         time.sleep(0.4 * (attempt + 1))
     return None
@@ -55,39 +61,53 @@ def fetch_themes() -> tuple[dict[str, dict], dict[str, list[str]]]:
     session = _session()
     t0 = time.time()
 
-    # 1. Enumerate theme pages.
-    first = _get(session, LIST_URL.format(page=1))
-    if not first:
+    # 1. Enumerate themes, one page of PAGE_SIZE at a time.
+    first = _get_json(session, LIST_URL.format(page=1, size=PAGE_SIZE))
+    if not first or not first.get("groups"):
         print("  WARN: theme directory unreachable; themes will be empty", flush=True)
         return {}, {}
 
-    pages = [int(p) for p in PAGE_RE.findall(first)]
-    last_page = max(pages) if pages else 1
+    total = int(first.get("totalCount") or len(first["groups"]))
+    last_page = (total + PAGE_SIZE - 1) // PAGE_SIZE
 
     found: dict[str, str] = {}
-    for no, name in THEME_LINK_RE.findall(first):
-        found[no] = name.strip()
+
+    def add_groups(groups):
+        for g in groups:
+            no = str(g["no"])
+            found[no] = (g.get("name") or "").strip()
+
+    add_groups(first["groups"])
 
     def list_page(p: int):
-        html = _get(session, LIST_URL.format(page=p))
-        return THEME_LINK_RE.findall(html) if html else []
+        j = _get_json(session, LIST_URL.format(page=p, size=PAGE_SIZE))
+        return j.get("groups", []) if j else []
 
-    with ThreadPoolExecutor(max_workers=config.MAX_WORKERS) as ex:
-        for res in ex.map(list_page, range(2, last_page + 1)):
-            for no, name in res:
-                found[no] = name.strip()
+    if last_page > 1:
+        with ThreadPoolExecutor(max_workers=config.MAX_WORKERS) as ex:
+            for groups in ex.map(list_page, range(2, last_page + 1)):
+                add_groups(groups)
 
-    # 2. Pull each theme's member list.
+    # 2. Pull each theme's member list, paginating when it overflows one page.
     def detail(no: str):
-        html = _get(session, DETAIL_URL.format(no=no))
-        if not html:
-            return no, []
-        seen, members = set(), []
-        for code, nm in MEMBER_RE.findall(html):
-            if code not in seen:
-                seen.add(code)
-                members.append(code)
-        return no, members
+        codes: list[str] = []
+        seen: set[str] = set()
+        page = 1
+        while True:
+            j = _get_json(session, DETAIL_URL.format(no=no, page=page, size=PAGE_SIZE))
+            if not j:
+                break
+            stocks = j.get("stocks") or []
+            for s in stocks:
+                code = str(s.get("itemCode") or "")
+                if CODE_RE.match(code) and code not in seen:
+                    seen.add(code)
+                    codes.append(code)
+            tc = int(j.get("totalCount") or 0)
+            if page * PAGE_SIZE >= tc or not stocks:
+                break
+            page += 1
+        return no, codes
 
     themes: dict[str, dict] = {}
     with ThreadPoolExecutor(max_workers=config.MAX_WORKERS) as ex:

@@ -6,10 +6,13 @@ shares and SPACs, neither of which behaves like a momentum leader.
 """
 from __future__ import annotations
 
+import io
 import re
 import time
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
+import requests
 
 from . import config
 
@@ -24,12 +27,49 @@ COMMON_CODE_RE = re.compile(r"^[0-9A-Z]{5}0$")
 
 SPAC_RE = re.compile(r"스팩|기업인수목적")
 
+# FinanceDataReader's StockListing("KRX") no longer hits a live KRX endpoint
+# (data.krx.co.kr answers "LOGOUT" without an account). It reads a daily CSV
+# that a third party auto-commits to a GitHub repo, and that commit routinely
+# lands *after* our 12:13 UTC run -- so the current day's file 404s and the whole
+# job aborted before a single price was fetched (2026-09-08..10 outage). When the
+# library call fails we read the same cache directly and walk back to the most
+# recent day that exists. The universe barely moves session to session, so a
+# listing a few days stale is harmless; a missing run is not.
+_CACHE_CSV = (
+    "https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache"
+    "/refs/heads/master/data/listing/krx/{date}.csv"
+)
 
-def _fetch_listing(attempts: int = 4):
+
+def _listing_from_cache_csv(lookback_days: int = 10) -> pd.DataFrame | None:
+    today = datetime.now(timezone.utc) + timedelta(hours=9)  # KST calendar day
+    for back in range(lookback_days + 1):
+        date = (today - timedelta(days=back)).strftime("%Y-%m-%d")
+        try:
+            r = requests.get(_CACHE_CSV.format(date=date),
+                             timeout=config.REQUEST_TIMEOUT)
+            if r.status_code != 200:
+                continue
+            df = pd.read_csv(
+                io.StringIO(r.text), index_col=0,
+                dtype={"Code": str, "Dept": str, "ChangeCode": str, "MarketId": str},
+            )
+            if len(df) > 1000:
+                print(f"  universe: using cached KRX listing for {date} "
+                      f"({len(df)} rows)", flush=True)
+                return df.reset_index(drop=True)
+        except (requests.RequestException, ValueError, pd.errors.ParserError):
+            continue
+    return None
+
+
+def _fetch_listing(attempts: int = 3):
     """The listing is a hard dependency and a single request, so retry it.
 
     An unattended daily job should not abort because one call happened to time
-    out; without this the whole run dies before a single price is fetched.
+    out; without this the whole run dies before a single price is fetched. If
+    every attempt fails -- most often because today's upstream CSV is not
+    published yet -- fall back to the most recent cached listing.
     """
     import FinanceDataReader as fdr
 
@@ -44,7 +84,17 @@ def _fetch_listing(attempts: int = 4):
             last = e
         print(f"  WARN: KRX listing attempt {i + 1}/{attempts} failed ({last})", flush=True)
         time.sleep(3 * (i + 1))
-    raise RuntimeError(f"could not load KRX listing after {attempts} attempts") from last
+
+    print("  WARN: KRX listing unavailable via FinanceDataReader; "
+          "trying the raw cache", flush=True)
+    cached = _listing_from_cache_csv()
+    if cached is not None:
+        return cached
+
+    raise RuntimeError(
+        f"could not load KRX listing after {attempts} attempts and the "
+        f"cache fallback found nothing"
+    ) from last
 
 
 def load_universe() -> pd.DataFrame:

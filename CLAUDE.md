@@ -94,13 +94,29 @@ Deployment.
 - **KRX's own API is unusable.** It now requires an account; `pykrx` and direct
   `data.krx.co.kr` calls return `LOGOUT`. Do not reintroduce them.
 - **Listing: FinanceDataReader `StockListing("KRX")`.** ETFs/ETNs are already
-  absent from it. Retried 4x — it is one request and a hard dependency.
-- **Themes: Naver theme directory**, up to **8** per stock (`MAX_THEMES_PER_STOCK`),
-  most *specific* first (fewest members = most identifying). Measured spread:
-  median 2, p90 5, max 31 (삼성전자). A cap of 2 carried only 62.5% of
-  memberships; 8 carries 97.8% and drops the tail where a stock belongs to so
-  many themes that none of them describes it. Tables render the first two
-  (`themeChips(themes, 2)`); the detail page renders all.
+  absent from it. Retried 3x — it is one request and a hard dependency.
+  - FDR no longer calls KRX live; it reads a daily CSV a third party
+    auto-commits to `github.com/FinanceData/fdr_krx_data_cache`, and that
+    commit often lands *hours after* our 12:13 UTC cron. When the today file is
+    missing every FDR attempt 404s. `universe._fetch_listing` then falls back to
+    `_listing_from_cache_csv`, which fetches that same repo's raw CSV and walks
+    back day by day to the newest one that exists. The universe barely moves
+    session to session, so a listing a few days stale is fine; a skipped run is
+    not. See *Traps already hit*.
+- **Themes: Naver mobile API `m.stock.naver.com/api/stocks/theme`**, up to **8**
+  per stock (`MAX_THEMES_PER_STOCK`), most *specific* first (fewest members =
+  most identifying). Measured spread: median 2, p90 5, max 31 (삼성전자). A cap
+  of 2 carried only 62.5% of memberships; 8 carries 97.8% and drops the tail
+  where a stock belongs to so many themes that none of them describes it.
+  Tables render the first two (`themeChips(themes, 2)`); the detail page renders
+  all.
+  - The old HTML scrape of `finance.naver.com/sise/theme.naver` died in 2026-09
+    when Naver rebuilt that page as a client-rendered React app — the HTML has
+    no `type=theme&no=` links any more, so the regex found nothing and themes
+    silently went empty (no crash: `run.py` tolerates zero themes). The mobile
+    API is the JSON that new page calls: one request per page of themes
+    (`pageSize` capped ~100, ~3 pages for 266 themes), one per theme's members
+    (paginated, biggest theme ~148). UTF-8 JSON, no key, no euc-kr.
 - **거래대금 is REAL where KRX covers it, estimated elsewhere.** `pipeline/krx.py`
   is live and supplies ~97.5% of the served year; the rest (pre-2010, or days
   the API skipped) falls back to `volume x (O+H+L+C)/4`. Per-candle flags drive
@@ -223,6 +239,16 @@ within 20%.
    column off-screen. The badge was also redundant with the 신고가까지 cell. Names
    are now capped at 132px for the same reason. When adding a column, check the
    table with a row that has every optional element present.
+9. **The KRX listing depends on a third party's publish schedule.** FDR's
+   `StockListing("KRX")` reads a CSV that `FinanceData/fdr_krx_data_cache`
+   auto-commits daily — and on 2026-09-08..10 that commit landed ~19:xx UTC,
+   *after* our 12:13 UTC run, so every attempt got `HTTP 404` on the missing
+   `<today>.csv` and the job died in the universe step before one price was
+   fetched. Three days of no deploy. Symptom in the log: `WARN: KRX listing
+   attempt N/N failed (HTTP Error 404: Not Found)` then `RuntimeError: could not
+   load KRX listing`. Fix: `_listing_from_cache_csv` fetches that repo's raw CSV
+   directly and walks back to the most recent date that exists. A run that took
+   the fallback prints `universe: using cached KRX listing for <date>`.
 
 ## Deployment
 
